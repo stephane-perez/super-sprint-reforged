@@ -61,7 +61,16 @@ Adaptations des outils :
 - Toutes les lectures de `ctl[]` passent par `F_0629C` : c'est le seul point à étendre pour ajouter des contrôles.
 - L'écran des options calcule l'indice par `touche − 2` : **F5 tombe exactement sur `ctl[3]`** une fois la case libérée.
 
-## 5. Voiture 4 jouable : état
+## 5. Techniques de modification
+
+- **Ajouter du code** : à la fin du TEXT (le DATA et le BSS sont atteints par a4 seulement).
+- **Ajouter des variables** : agrandir le BSS dans l'en-tête. Comme a4 = début du BSS + taille du BSS, les nouveaux octets apparaissent *sous* le BSS d'origine, en `-(taille d'origine + n)(a4)`, sans rien déplacer d'autre.
+- **Agrandir un tableau local** d'une fonction C : augmenter le `link a6,#-n` et réécrire les déplacements `lea/pea d16(a6)` du tableau (`reframe()` dans `patch_ss.py`, qui vérifie le nombre de remplacements).
+- **Rediriger un appel** : les entrées de la table de sauts (`jsr $NN(a5)`) sont des `jmp` relogés ; on remplace la cible, la relocation reste valable.
+- **Piège** : les routines graphiques en assembleur du jeu (`F_0C462`…) ne sauvent pas les registres. Un compteur de boucle dans `d2` a été écrasé ; le défaut n'apparaissait que dans certaines constructions (selon ce qui suivait la table en mémoire). Diagnostic : point d'arrêt sur changement d'un mot de l'écran (`b ($adresse).w ! ($adresse).w`), puis pile.
+- **Tests** : `patch_ss.py --autopilot` (non concluant : l'IA d'une voiture humaine n'est pas prise en compte par la physique) ; scripts de touches `runx.sh` sur des parties complètes.
+
+## 6. Voiture 4 jouable : état
 
 Fait (`src/p4.s`, `tools/patch_ss.py --p4`) et vérifié sous Hatari :
 
@@ -72,10 +81,20 @@ Fait (`src/p4.s`, `tools/patch_ss.py --p4`) et vérifié sous Hatari :
 
 Vérifications faites (Hatari, EmuTOS) : ST + joystick parallèle, STE + joypad A. Mémoire : `ctl = [0,2,3,4]` ou `[0,2,3,6]`, `drone = [0,1,1,0]` après inscription. Partie complète sur ST (5 minutes) : course avec la voiture verte humaine, fin de partie, saisie des initiales, retour au titre, démo à 4 voitures, sans plantage ; `ctl[3]` garde sa valeur.
 
+Version 2 (vérifiée sous Hatari) :
+
+- ligne du bas « GREEN CAR », clés, tour, score quand la verte est humaine ;
+- écran des options : 4 voitures (la verte est une copie recolorée de la rouge), titres, aide sur 2 lignes ;
+- choix du circuit, « prepare to race », initiales : 4 colonnes de 80 pixels ; la verte peut rejoindre, continuer après une course ou saisir ses initiales ;
+- la partie continue tant qu'une des 4 voitures est humaine (la verte peut jouer seule) ;
+- « customize car » pour la verte ;
+- joypads lus seulement sur STE et Falcon (le Mega STE n'a pas de ports joypad) ;
+- essai sur STE réel (v1) : joysticks, joypads, adaptateur parallèle.
+
 Reste à faire :
 
-- **Affichage** : l'en-tête n'a que 3 colonnes (score, tours). La voiture verte n'a que la ligne du bas « DRONE LAP » ;
-- **Écran titre** (`F_0969A`, borné à 3) : la voiture verte ne peut pas lancer une partie, seulement la rejoindre ;
-- fin de course, classement, qualification pour la course suivante, scores et initiales de la voiture verte : boucles bornées à 3 à étudier une par une (`F_01B3C`, `F_027A4`, `F_0CFEC`, `F_0EE60`, `F_101C6`…) ;
-- deux voitures sur « none » sont refusées par la règle « contrôles en double » ;
-- essais sur machine réelle (adaptateur parallèle, joypads STE).
+- **podium** : la verte humaine y est dessinée comme un drone (gris), faute d'image « humaine » verte ;
+- **écran titre** (`F_0969A`) : la verte ne peut pas lancer une partie, seulement la rejoindre ;
+- la couleur de la 4e colonne en haut de « prepare to race » est un bleu-vert si P0[4] n'est pas libre sur un écran ;
+- boucles bornées à 3 non encore étudiées : `F_01B3C`, `F_027A4`, `F_06C78`, `F_0BE2E`, `F_0C760`, `F_0C894`, `F_0D72E`, `F_0D772`, `F_0EE60` (`$F300`), `F_101C6` (affichage de l'en-tête), `F_112EA` ;
+- deux voitures sur « none » sont refusées par la règle « contrôles en double ».

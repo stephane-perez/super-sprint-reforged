@@ -26,11 +26,13 @@ Rétro-ingénierie, correctifs et outils pour **Super Sprint** (Electric Dreams,
 |---|---|---|---|
 | `joystick 2` | adaptateur parallèle, prise « joystick 3 » | D4–D7 | BUSY |
 | `joystick 3` | adaptateur parallèle, prise « joystick 4 » | D0–D3 | STROBE |
-| `joypad a` / `joypad b` | ports joypad STE, Mega STE, Falcon | croix | bouton A |
+| `joypad a` / `joypad b` | ports joypad STE et Falcon (le Mega STE n'en a pas) | croix | bouton A |
 
-L'adaptateur parallèle est celui de *Gauntlet II*, *Leatherneck* ou *Dynabusters+*. Les joypads ne sont lus que si le cookie `_MCH` indique un STE, un Mega STE ou un Falcon.
+L'adaptateur parallèle est celui de *Gauntlet II*, *Leatherneck* ou *Dynabusters+*. Les joypads ne sont lus que si le cookie `_MCH` indique un STE ou un Falcon.
 
-**Limites actuelles** : la voiture verte n'a pas de score dans l'en-tête (qui n'a que 3 colonnes) ; elle ne peut pas lancer une partie depuis l'écran titre, seulement la rejoindre ; deux voitures sur `none` sont refusées (« can't have two controls the same »). Testé sous Hatari uniquement pour l'instant. Voir [docs/fr/METHODOLOGIE.md](docs/fr/METHODOLOGIE.md) §5.
+**Voiture verte** : son score, ses clés et son tour s'affichent sur la ligne du bas (« GREEN CAR »). Les écrans « prepare to race », choix du circuit et initiales ont 4 colonnes ; elle peut continuer après une course, saisir ses initiales, et la partie continue tant qu'une voiture est humaine.
+
+**Limites actuelles** : au podium, la verte humaine est dessinée comme un drone ; elle ne peut pas lancer une partie depuis l'écran titre, seulement la rejoindre ; deux voitures sur `none` sont refusées (« can't have two controls the same »). Voir [docs/fr/METHODOLOGIE.md](docs/fr/METHODOLOGIE.md) §5.
 
 ## Construction
 
@@ -51,7 +53,7 @@ make check                             # vérifie le résultat
 
 | Résultat | MD5 |
 |---|---|
-| `SSPRINT.PRG` (défaut) | `7550ec3ca00c84d4228c911827dbb3ca` |
+| `SSPRINT.PRG` (défaut) | `4e9f0eef2b4dc952f824a04a131a455b` |
 | `SSPRINT.PRG` avec `P4=0` (disque dur seul) | `c98082d03fdc9f2ba12e6321a8e83188` |
 
 ## Étude

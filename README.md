@@ -26,11 +26,13 @@ Reverse engineering, patches and tools for **Super Sprint** (Electric Dreams, 19
 |---|---|---|---|
 | `joystick 2` | parallel adapter, "joystick 3" socket | D4–D7 | BUSY |
 | `joystick 3` | parallel adapter, "joystick 4" socket | D0–D3 | STROBE |
-| `joypad a` / `joypad b` | STE, Mega STE, Falcon joypad ports | D-pad | button A |
+| `joypad a` / `joypad b` | STE and Falcon joypad ports (the Mega STE has none) | D-pad | button A |
 
-The parallel adapter is the one used by *Gauntlet II*, *Leatherneck* or *Dynabusters+*. The joypads are only read when the `_MCH` cookie reports an STE, a Mega STE or a Falcon.
+The parallel adapter is the one used by *Gauntlet II*, *Leatherneck* or *Dynabusters+*. The joypads are only read when the `_MCH` cookie reports an STE or a Falcon.
 
-**Current limits**: the green car has no score in the header (which only has 3 columns); it cannot start a game from the title screen, only join one; two cars set to `none` are refused ("can't have two controls the same"). Only tested in Hatari so far. See [docs/fr/METHODOLOGIE.md](docs/fr/METHODOLOGIE.md) §5.
+**Green car**: its score, wrenches and lap are shown on the bottom line ("GREEN CAR"). The "prepare to race", track selection and initials screens have 4 columns; it can continue after a race, enter its initials, and the game goes on as long as one car is human.
+
+**Current limits**: on the podium, a human green car is drawn like a drone; it cannot start a game from the title screen, only join one; two cars set to `none` are refused ("can't have two controls the same"). See [docs/fr/METHODOLOGIE.md](docs/fr/METHODOLOGIE.md) §5.
 
 ## Building
 
@@ -51,7 +53,7 @@ make check                           # checks the result
 
 | Result | MD5 |
 |---|---|
-| `SSPRINT.PRG` (default) | `7550ec3ca00c84d4228c911827dbb3ca` |
+| `SSPRINT.PRG` (default) | `4e9f0eef2b4dc952f824a04a131a455b` |
 | `SSPRINT.PRG` with `P4=0` (hard disk fix only) | `c98082d03fdc9f2ba12e6321a8e83188` |
 
 ## Study

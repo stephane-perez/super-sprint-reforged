@@ -33,8 +33,9 @@ CTL         equ     -$12ca          ; ctl[4] (mots), relatif à a4
 CTL3_DEF    equ     1               ; contrôle initial de la 4e voiture : aucun
             endif
 F_0624A     equ     $624a           ; installation du gestionnaire IKBD
-F_0E67C     equ     $e67c           ; « prepare to race » dans une colonne
-F_0F560     equ     $f560           ; idem, depuis F_0F4E2
+F_0E78C     equ     $e78c           ; « press accelerate to play/continue »
+F_0F60C     equ     $f60c           ; idem, écran du choix du circuit
+F_0C224     equ     $c224           ; nombre (décompte)
 F_0A2E4     equ     $a2e4           ; chiffre « DRONE LAP n » en bas de l'écran
 DRONE3      equ     -$f44           ; drone[3] (drone[i] : -$F4A(a4) + 2*i)
 LAPS3       equ     -$f42+6         ; tours de la voiture 3
@@ -54,6 +55,12 @@ PIC3CARS    equ     -$66            ; image compressée « 3 voitures » (option
                                     ; prepare to race, initiales)
 PALS        equ     -$16de          ; palettes du raster de ces écrans
 COUNTS      equ     -$17da          ; durées des palettes (unités de 2 lignes)
+; Le patcheur agrandit le BSS de BSSX octets : ils apparaissent sous le BSS
+; d'origine, en P4B(a4). On y range les tables par voiture à 4 cases.
+BSSX        equ     256
+P4B         equ     -$2b74-BSSX
+NPOS        equ     10              ; tables de positions (x ou y), 4 mots
+DRONES      equ     -$f4a           ; drone[4]
 GREEN1      equ     $070            ; verts de la 4e voiture (palette P2,
 GREEN2      equ     $041            ; couleurs 1 et 2, libres dans cette bande)
 
@@ -62,14 +69,18 @@ GREEN2      equ     $041            ; couleurs 1 et 2, libres dans cette bande)
 ; ---- table d'entrée : le patcheur vise ces adresses (base + 4*n) ----------
             bra.w   ext629c         ; +0  : F_0629c, contrôles 1 et >= 4
             bra.w   init            ; +4  : entrée $24 de la table de sauts
-            bra.w   joindraw        ; +8  : « prepare to race » (colonne i)
-            bra.w   names           ; +12 : pointeur vers le nom d'un contrôle
-            bra.w   xpos_i          ; +16 : x du libellé (boucle par voiture)
-            bra.w   xpos_k          ; +20 : x du libellé (touche F2..F5)
-            bra.w   joindraw2       ; +24 : « prepare to race », autre écran
-            bra.w   hud4            ; +28 : entrée $132 de la table de sauts
-            bra.w   dec4            ; +32 : entrée $18c (F_0A546)
-            bra.w   titles          ; +36 : titres de l'écran des options
+            bra.w   names           ; +8  : pointeur vers le nom d'un contrôle
+            bra.w   xpos_i          ; +12 : x, y du libellé (par voiture)
+            bra.w   xpos_k          ; +16 : x, y du libellé (touche F2..F5)
+            bra.w   hud4            ; +20 : entrée $132 de la table de sauts
+            bra.w   dec4            ; +24 : entrée $18c (F_0A546)
+            bra.w   titles          ; +28 : titres de l'écran des options
+            bra.w   alldrone        ; +32 : fin de partie (F_0975A)
+            bra.w   prepchk         ; +36 : fin de « prepare to race »
+            bra.w   inichk          ; +40 : fin de la saisie des initiales
+            bra.w   col4a           ; +44 : F_0E78C (colonne d'un drone)
+            bra.w   col4b           ; +48 : F_0F60C (idem, choix du circuit)
+            bra.w   col4c           ; +52 : F_0C224 (décompte d'un drone)
 
 ; ----------------------------------------------------------------------------
 ; init : remplace l'appel de F_0624A au démarrage (jsr $24(a5)).
@@ -77,6 +88,11 @@ GREEN2      equ     $041            ; couleurs 1 et 2, libres dans cette bande)
 ; ports joypad (cookie _MCH = STE ou Falcon), puis continue vers F_0624A.
 ; ----------------------------------------------------------------------------
 init        move.w  #CTL3_DEF,CTL+6(a4)
+            lea     postab(pc),a0   ; tables de positions à 4 voitures
+            lea     P4B(a4),a1
+            moveq   #NPOS*4-1,d0
+.pos        move.w  (a0)+,(a1)+
+            dbra    d0,.pos
             movem.l d1-d2/a0-a2,-(a7)
             pea     chkmch(pc)
             move.w  #38,-(a7)       ; Supexec
@@ -196,29 +212,6 @@ readext     moveq   #0,d0
             rts
 
 ; ----------------------------------------------------------------------------
-; joindraw : remplace « jsr F_0E67C(pc) » dans F_0E3CA (une voiture rejoint
-; la course). F_0E67C écrit dans la colonne x = 15 + 107*i de l'en-tête : il
-; n'y a que 3 colonnes, on n'écrit rien pour la 4e voiture.
-; Pile : retour, pointeur écran (long), i (mot), i+1 (mot).
-; ----------------------------------------------------------------------------
-joindraw    cmpi.w  #3,8(a7)
-            beq.s   .skip
-            move.l  a5,a0
-            adda.l  #F_0E67C,a0
-            jmp     (a0)
-.skip       rts
-
-; joindraw2 : remplace « jsr F_0F560(pc) » dans F_0F4E2 (une voiture rejoint
-; la course pendant « prepare to race »). Pile : retour, écran (long),
-; x (mot), i+1 (mot).
-joindraw2   cmpi.w  #4,10(a7)
-            beq.s   .skip
-            move.l  a5,a0
-            adda.l  #F_0F560,a0
-            jmp     (a0)
-.skip       rts
-
-; ----------------------------------------------------------------------------
 ; names : remplace « lea NAMES(a4),a0 / adda.w d0,a0 » (d0 = 4*contrôle).
 ; Renvoie dans a0 l'adresse d'un pointeur vers le nom du contrôle ; l'appelant
 ; fait ensuite move.l (a0),-(a7).
@@ -259,9 +252,8 @@ xpos_i      lea     labxy(pc),a0
 ; rouge et verte au milieu (au-dessus des voitures du bas, voir pic4).
 ; a6 = cadre de F_0E850, écran en 8(a6).
 ; ----------------------------------------------------------------------------
-titles      movem.l d2/a2,-(a7)
-            lea     titab(pc),a2
-            moveq   #3,d2
+titles      move.l  a2,-(a7)        ; F_0C462 modifie d0-d7 : compteur
+            lea     titab(pc),a2    ; = adresse de fin de la table
 .t          move.w  6(a2),-(a7)     ; y
             move.w  4(a2),-(a7)     ; x
             move.w  2(a2),-(a7)     ; couleur
@@ -274,8 +266,10 @@ titles      movem.l d2/a2,-(a7)
             jsr     (a0)
             lea     14(a7),a7
             addq.w  #8,a2
-            dbra    d2,.t
-            movem.l (a7)+,d2/a2
+            lea     titend(pc),a0
+            cmpa.l  a0,a2
+            bne.s   .t
+            movea.l (a7)+,a2
             rts
 
 ; ----------------------------------------------------------------------------
@@ -303,6 +297,7 @@ dec4        move.l  4(a7),d0
             movem.l d2-d7/a2-a3,-(a7)
             bsr.s   pic4
             movem.l (a7)+,d2-d7/a2-a3
+            move.w  #GREEN1,PALS+8(a4)      ; P0[4] : textes de la 4e colonne
             move.w  #GREEN1,PALS+$40+2(a4)
             move.w  #GREEN2,PALS+$40+4(a4)
             move.w  #23,COUNTS+2(a4)
@@ -360,6 +355,97 @@ pic4        lea     126*160(a0),a2
             lea     160(a2),a2
             dbra    d7,.row
             rts
+
+
+; ----------------------------------------------------------------------------
+; alldrone : fin de partie quand les 4 voitures sont des drones (F_0975A,
+; $97EC, ne testait que les 3 premières). Résultat dans d0.
+; ----------------------------------------------------------------------------
+alldrone    move.w  DRONES(a4),d0
+            and.w   DRONES+2(a4),d0
+            and.w   DRONES+4(a4),d0
+            and.w   DRONES+6(a4),d0
+            rts
+
+; ----------------------------------------------------------------------------
+; prepchk : fin de la boucle de « prepare to race » (F_0DD20, $E348).
+; Cadre de F_0DD20 (a6) : animation en cours par voiture en -$2C(a6)
+; (4 mots, déplacé par le patcheur), décompte en -4(a6).
+; d0 = 1 : on continue ; 0 : on sort. Comme l'original : on continue tant
+; qu'une animation tourne, tant que le décompte est > $FA, puis tant qu'il
+; est > 0 et qu'un drone peut encore rejoindre. La voiture 4 n'est prise en
+; compte que si elle a un contrôle (sinon elle est toujours drone et le
+; décompte ne s'arrêterait jamais plus tôt, même avec 3 joueurs).
+; ----------------------------------------------------------------------------
+prepchk     lea     -$2c(a6),a0
+            moveq   #3,d1
+.anim       cmpi.w  #1,(a0)+
+            beq.s   .yes
+            dbra    d1,.anim
+            move.w  -4(a6),d0
+            ble.s   .no
+            cmpi.w  #$fa,d0
+            bgt.s   .yes
+            lea     DRONES(a4),a0
+            moveq   #2,d1
+            cmpi.w  #1,CTL+6(a4)    ; voiture 4 sans contrôle : ignorée
+            beq.s   .dr
+            moveq   #3,d1
+.dr         cmpi.w  #1,(a0)+
+            beq.s   .yes
+            dbra    d1,.dr
+.no         moveq   #0,d0
+            rts
+.yes        moveq   #1,d0
+            rts
+
+
+; ----------------------------------------------------------------------------
+; inichk : fin de la saisie des initiales (F_0CFEC, $D672). L'état par
+; voiture est en -$3C(a6) (4 mots, déplacé par le patcheur) ; on continue
+; (d0 = 1) tant qu'une voiture est encore en saisie (état 1).
+; ----------------------------------------------------------------------------
+inichk      lea     -$3c(a6),a0
+            moveq   #3,d1
+.l          cmpi.w  #1,(a0)+
+            beq.s   .yes
+            dbra    d1,.l
+            moveq   #0,d0
+            rts
+.yes        moveq   #1,d0
+            rts
+
+
+; ----------------------------------------------------------------------------
+; col4a / col4b / col4c : les écrans à 4 colonnes invitent chaque drone à
+; rejoindre la course. Si la voiture 4 n'a pas de contrôle (« none »), sa
+; colonne reste vide, comme dans le jeu d'origine à 3 colonnes.
+;   col4a remplace « jsr F_0E78C(pc) » en $DE0C  : pile écran, i, i+1
+;   col4b remplace « jsr F_0F60C(pc) » en $EFB0  : pile écran, x, i+1
+;   col4c remplace « jsr F_0C224(pc) » en $E308  : pile écran, n, x, y, c, i+1
+; ----------------------------------------------------------------------------
+col4a       cmpi.w  #3,8(a7)
+            bne.s   .go
+            cmpi.w  #1,CTL+6(a4)
+            beq.s   col4r
+.go         move.l  a5,a0
+            adda.l  #F_0E78C,a0
+            jmp     (a0)
+col4b       cmpi.w  #4,10(a7)
+            bne.s   .go
+            cmpi.w  #1,CTL+6(a4)
+            beq.s   col4r
+.go         move.l  a5,a0
+            adda.l  #F_0F60C,a0
+            jmp     (a0)
+col4c       cmpi.w  #4,16(a7)
+            bne.s   .go
+            cmpi.w  #1,CTL+6(a4)
+            beq.s   col4r
+.go         move.l  a5,a0
+            adda.l  #F_0C224,a0
+            jmp     (a0)
+col4r       rts
 
 ; ----------------------------------------------------------------------------
 ; hud4 : remplace F_0A2E4 (entrée $132 de la table de sauts), appelée à
@@ -505,6 +591,19 @@ putc        movem.l d2-d5/a2-a3,-(a7)
             rts
 
 ; ---- données ---------------------------------------------------------------
+; positions (x ou y) par voiture des animations dessinées sur l'image des
+; voitures ; dans l'original, 3 cases chacune, en -$2184 ... -$21BA(a4).
+; Rouge : x - 80 (sous la bleue) ; verte : x + 80 depuis l'ancienne rouge.
+postab      dc.w    $26,$26,$c5,$c6         ; -$2184 : x (initiales)
+            dc.w    $49,$8e,$49,$8e         ; -$218A : y
+            dc.w    $26,$26,$c5,$c6         ; -$2190 : x (prepare to race)
+            dc.w    $49,$8e,$49,$8e         ; -$2196 : y
+            dc.w    $1a,$1a,$b9,$ba         ; -$219C : x
+            dc.w    $3c,$81,$3c,$81         ; -$21A2 : y
+            dc.w    $58,$58,$f9,$f8         ; -$21A8 : x
+            dc.w    $3f,$84,$3f,$84         ; -$21AE : y
+            dc.w    $26,$26,$c5,$c6         ; -$21B4 : x (options)
+            dc.w    $49,$8e,$49,$8e         ; -$21BA : y
 ; libellés des contrôles (x, y), voitures 0 à 3 (bleue, rouge, jaune, verte)
 labxy       dc.w    $32,$22, $32,$72, $d2,$22, $d2,$72
 ; grands titres : texte (décalage depuis titab), couleur, x, y. Couleur =
@@ -514,6 +613,7 @@ titab       dc.w    tblue-titab,1,36,5
             dc.w    tyellow-titab,3,185,5
             dc.w    tred-titab,6,42,100
             dc.w    tgreen-titab,1,191,100
+titend
 tblue       dc.b    'blue car',0
 tyellow     dc.b    'yellow car',0
 tred        dc.b    'red car',0
