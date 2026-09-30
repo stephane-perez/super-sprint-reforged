@@ -57,10 +57,14 @@ PALS        equ     -$16de          ; palettes du raster de ces écrans
 COUNTS      equ     -$17da          ; durées des palettes (unités de 2 lignes)
 ; Le patcheur agrandit le BSS de BSSX octets : ils apparaissent sous le BSS
 ; d'origine, en P4B(a4). On y range les tables par voiture à 4 cases.
-BSSX        equ     256
+BSSX        equ     256             ; utilisés : 80 + 48
 P4B         equ     -$2b74-BSSX
 NPOS        equ     10              ; tables de positions (x ou y), 4 mots
 DRONES      equ     -$f4a           ; drone[4]
+PODCOL      equ     -$167e          ; podium : 3 couleurs par entrée, 7 entrées
+                                    ; (0-2 humains, 3 verte drone, 4-6 drones)
+PODCOL8     equ     P4B+NPOS*8      ; notre copie à 8 entrées (3 = verte
+                                    ; humaine, 7 = verte drone)
 GREEN1      equ     $070            ; verts de la 4e voiture (palette P2,
 GREEN2      equ     $041            ; couleurs 1 et 2, libres dans cette bande)
 
@@ -93,6 +97,16 @@ init        move.w  #CTL3_DEF,CTL+6(a4)
             moveq   #NPOS*4-1,d0
 .pos        move.w  (a0)+,(a1)+
             dbra    d0,.pos
+            lea     PODCOL(a4),a0   ; couleurs du podium (lues dans INIT.DAT)
+            lea     PODCOL8(a4),a1
+            moveq   #7*3-1,d0
+.pc         move.w  (a0)+,(a1)+
+            dbra    d0,.pc
+            lea     PODCOL8(a4),a0
+            move.l  3*6(a0),7*6(a0)         ; 7 = verte drone (ancienne 3)
+            move.w  3*6+4(a0),7*6+4(a0)
+            move.l  #$05730040,3*6(a0)      ; 3 = verte humaine :
+            move.w  #$0070,3*6+4(a0)        ; clair, foncé, principal
             movem.l d1-d2/a0-a2,-(a7)
             pea     chkmch(pc)
             move.w  #38,-(a7)       ; Supexec
@@ -461,8 +475,10 @@ HUDX        equ     96
 HUDY        equ     194
 
 hud4        tst.w   DRONE3(a4)
-            beq.s   .human
-            move.l  a5,a0
+            bne.s   .orig
+            cmpi.w  #1,CTL+6(a4)    ; pas de contrôle (démo...) : original
+            bne.s   .human
+.orig       move.l  a5,a0
             adda.l  #F_0A2E4,a0
             jmp     (a0)
 .human      movem.l d2-d7/a2-a3,-(a7)

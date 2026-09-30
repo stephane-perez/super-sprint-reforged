@@ -32,7 +32,7 @@ L'adaptateur parallèle est celui de *Gauntlet II*, *Leatherneck* ou *Dynabuster
 
 **Voiture verte** : son score, ses clés et son tour s'affichent sur la ligne du bas (« GREEN CAR »). Les écrans « prepare to race », choix du circuit et initiales ont 4 colonnes ; elle peut continuer après une course, saisir ses initiales, et la partie continue tant qu'une voiture est humaine.
 
-**Limites actuelles** : au podium, la verte humaine est dessinée comme un drone ; elle ne peut pas lancer une partie depuis l'écran titre, seulement la rejoindre ; deux voitures sur `none` sont refusées (« can't have two controls the same »). Voir [docs/fr/METHODOLOGIE.md](docs/fr/METHODOLOGIE.md) §5.
+**Limites actuelles** : la verte ne peut pas lancer une partie depuis l'écran titre, seulement la rejoindre ; deux voitures sur `none` sont refusées (« can't have two controls the same »). Voir [docs/fr/METHODOLOGIE.md](docs/fr/METHODOLOGIE.md) §5.
 
 ## Construction
 
@@ -53,7 +53,7 @@ make check                             # vérifie le résultat
 
 | Résultat | MD5 |
 |---|---|
-| `SSPRINT.PRG` (défaut) | `4e9f0eef2b4dc952f824a04a131a455b` |
+| `SSPRINT.PRG` (défaut) | `edaa0a4e8451f279d850be5fc5c486b4` |
 | `SSPRINT.PRG` avec `P4=0` (disque dur seul) | `c98082d03fdc9f2ba12e6321a8e83188` |
 
 ## Étude

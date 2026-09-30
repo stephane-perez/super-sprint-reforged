@@ -80,7 +80,7 @@ Environ 45 boucles sont bornées à 3 (joueurs humains) dans une vingtaine de fo
 | `F_0EE60` | Choix du circuit ; au début de la partie, toutes les voitures redeviennent drones sauf celle qui a lancé la partie |
 | `F_0DD20` | « Prepare to race » : chaque drone peut rejoindre (`F_0E3CA`), décompte, animations des pilotes sur l'image des voitures, puis `F_0CFEC` |
 | `F_0CFEC` | Saisie des initiales des joueurs qui n'ont pas continué ; voitures servies à tour de rôle, une par image |
-| `F_101C6` | Podium (« winner's circle », 4 places). En `$10FA8` : **tout humain classé derrière le premier drone redevient drone** (règle de l'arcade), sur les 4 voitures |
+| `F_101C6` | Podium (« winner's circle », 4 places). Couleurs de chaque voiture : 3 mots copiés dans la palette de sa bande depuis `-$167E(a4)` (`$104D2`). En `$10FA8` : **tout humain classé derrière le premier drone redevient drone** (règle de l'arcade), sur les 4 voitures |
 | `F_0F680` | Pour chaque humain ayant plus de 3 clés à molette : écran « customize car » (`F_0F6DA`) |
 | `F_0A546(src, dst)` | Décompression d'une image (RLE par plan). `-$66(a4)` : image « 3 voitures » (options, prepare to race, initiales) |
 | `F_0A3DE(écran, palettes, durées)` / `F_055CC` | Fondu puis raster Timer B : une palette de 16 couleurs (`$20` octets) par bande, durées en unités de 2 lignes. Options et prepare to race : palettes `-$16DE(a4)`, durées `-$17DA(a4)` = 26, 30, 255 |
@@ -127,4 +127,18 @@ Environ 45 boucles sont bornées à 3 (joueurs humains) dans une vingtaine de fo
 | `F_0DD20` : cadre de pile, `$DE9E`, `$E29E`, `$E314`, `$E348` → `prepchk` | tableaux locaux de 3 mots | 4 mots (`-$3C`, `-$34`, `-$2C`, `-$24(a6)`), boucles à 4 |
 | `F_0CFEC` : cadre de pile, 5 boucles, `$D31C`, `$D672` → `inichk` | tableaux locaux pour 3 voitures | 4 voitures ; tour de rôle `(compteur / 2) & 3` |
 | `$F6CC` | `cmpi.w #3` | « Customize car » pour 4 voitures |
+| `$F300`, `$110A8` | `cmpi.w #3` | Clés à molette de départ (difficulté) ; remise à zéro des clés d'un joueur éliminé |
+| `$104EE`, `$1054A` | `cmpi.w #3` ; `lea -$167E(a4)` | Podium : 3 couleurs par voiture, indice = voiture + 4 × drone (la voiture 3 était toujours « drone ») ; table à 8 entrées dans `P4B+80` : 3 = verte humaine (`$573`, `$040`, `$070`), 7 = verte drone |
 | 10 tables de positions `-$2184` … `-$21BA(a4)` | 3 cases | 4 cases dans 256 octets ajoutés au BSS (`P4B`), remplies par `init` |
+
+### Boucles bornées à 3 qui restent (examinées, sans effet sur la 4e voiture)
+
+| Fonction | Rôle de la boucle |
+|---|---|
+| `F_01B3C` (`$1FE0`, `$2096`, `$2228`), `F_027A4`, `F_0BE2E`, `F_101C6` (`$10236`, `$1026E`, `$10CB4`), `F_0F6DA` (`$F778`, `$F7B0`) | Affichage des 3 colonnes de l'en-tête (la verte a la ligne du bas) |
+| `F_0969A` | Écran titre : les voitures 0 à 2 seulement peuvent lancer une partie |
+| `F_06C78` | Division |
+| `F_0C760`, `F_0C894` | Tableau des records (3 colonnes) |
+| `F_0D72E`, `F_0D772` | Les 3 lettres des initiales |
+| `F_112EA` | Chiffres d'un nombre |
+| `F_101C6` `$104A8`, `$11002` | Tri du classement (3 comparaisons pour 4 voitures) et règle « derrière le premier drone » (positions 0 à 2) |

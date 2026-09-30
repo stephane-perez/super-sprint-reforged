@@ -120,6 +120,13 @@ def p4_patches(B):
         (0xDE0C, '4eba097e', '4eba%04x' % ((E(11) - 0xDE0E) & 0xFFFF)),
         (0xEFB0, '4eba065a', '4eba%04x' % ((E(12) - 0xEFB2) & 0xFFFF)),
         (0xE308, '4ebadf1a', '4eba%04x' % ((E(13) - 0xE30A) & 0xFFFF)),
+        # podium (F_101C6) : couleurs de la voiture 3 comme les autres
+        # (voiture + 4 * drone) dans une table à 8 entrées (P4B + 80)
+        (0x104EE, '0c500003', '0c500004'),
+        (0x1054A, '41ece982', lea_a4(P4B + 80)),
+        # clés à molette de départ (choix de la difficulté, F_0EE60) et
+        # remise à zéro des clés d'un joueur éliminé (F_101C6) : 4 voitures
+        loop4(0xF300), loop4(0x110A8, 'ff90'),
         # F_0F680 : écran « customize car » pour 4 voitures
         loop4(0xF6CC),
         # F_0CFEC (saisie des initiales) : 4 voitures. Tableaux locaux

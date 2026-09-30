@@ -32,7 +32,7 @@ The parallel adapter is the one used by *Gauntlet II*, *Leatherneck* or *Dynabus
 
 **Green car**: its score, wrenches and lap are shown on the bottom line ("GREEN CAR"). The "prepare to race", track selection and initials screens have 4 columns; it can continue after a race, enter its initials, and the game goes on as long as one car is human.
 
-**Current limits**: on the podium, a human green car is drawn like a drone; it cannot start a game from the title screen, only join one; two cars set to `none` are refused ("can't have two controls the same"). See [docs/fr/METHODOLOGIE.md](docs/fr/METHODOLOGIE.md) §5.
+**Current limits**: the green car cannot start a game from the title screen, only join one; two cars set to `none` are refused ("can't have two controls the same"). See [docs/fr/METHODOLOGIE.md](docs/fr/METHODOLOGIE.md) §5.
 
 ## Building
 
@@ -53,7 +53,7 @@ make check                           # checks the result
 
 | Result | MD5 |
 |---|---|
-| `SSPRINT.PRG` (default) | `4e9f0eef2b4dc952f824a04a131a455b` |
+| `SSPRINT.PRG` (default) | `edaa0a4e8451f279d850be5fc5c486b4` |
 | `SSPRINT.PRG` with `P4=0` (hard disk fix only) | `c98082d03fdc9f2ba12e6321a8e83188` |
 
 ## Study

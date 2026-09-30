@@ -87,14 +87,14 @@ Version 2 (vérifiée sous Hatari) :
 - écran des options : 4 voitures (la verte est une copie recolorée de la rouge), titres, aide sur 2 lignes ;
 - choix du circuit, « prepare to race », initiales : 4 colonnes de 80 pixels ; la verte peut rejoindre, continuer après une course ou saisir ses initiales ;
 - la partie continue tant qu'une des 4 voitures est humaine (la verte peut jouer seule) ;
-- « customize car » pour la verte ;
+- « customize car » pour la verte, clés à molette de départ ;
+- podium : la verte humaine en vert plein (les voitures y sont colorées par la palette : 3 couleurs par voiture, table étendue) ;
 - joypads lus seulement sur STE et Falcon (le Mega STE n'a pas de ports joypad) ;
 - essai sur STE réel (v1) : joysticks, joypads, adaptateur parallèle.
 
 Reste à faire :
 
-- **podium** : la verte humaine y est dessinée comme un drone (gris), faute d'image « humaine » verte ;
 - **écran titre** (`F_0969A`) : la verte ne peut pas lancer une partie, seulement la rejoindre ;
 - la couleur de la 4e colonne en haut de « prepare to race » est un bleu-vert si P0[4] n'est pas libre sur un écran ;
-- boucles bornées à 3 non encore étudiées : `F_01B3C`, `F_027A4`, `F_06C78`, `F_0BE2E`, `F_0C760`, `F_0C894`, `F_0D72E`, `F_0D772`, `F_0EE60` (`$F300`), `F_101C6` (affichage de l'en-tête), `F_112EA` ;
+- toutes les boucles bornées à 3 ont été examinées ; celles qui restent ne concernent que l'affichage à 3 colonnes (voir CODE_MAP.md) ;
 - deux voitures sur « none » sont refusées par la règle « contrôles en double ».
