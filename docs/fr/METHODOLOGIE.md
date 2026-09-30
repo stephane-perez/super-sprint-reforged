@@ -39,7 +39,7 @@ Adaptations des outils :
 - **Hatari 2.4.1** (paquet Ubuntu). Pas de ROM Atari : **EmuTOS 1.3** (libre) suffit. `etos192uk.img` pour l'ST ; `etos256uk.img` pour l'STE (Hatari traite l'image 192 Ko comme un TOS 1.x et repasse en mode ST).
 - Disque GEMDOS sur un dossier, `--auto C:\SSPRINT.PRG`. Le chargeur `AUTO/SUPER.PRG` échoue sous EmuTOS (son `Mshrink` renvoie une erreur et il boucle sur la couleur du fond) : on lance directement le jeu.
 - `hatari/run.sh` : sans écran, une capture par seconde, touches par `--cmd-fifo`. `hatari/runx.sh` : Xvfb + xdotool, les touches passent par l'émulation des joysticks de Hatari, y compris **joypads STE** (`Joystick2`/`3`) et **port parallèle** (`Joystick4`/`5`). Voir `hatari/joy4.cfg`.
-- Attention : Hatari ignore les touches des joysticks tant que **Maj** est enfoncée (`Joy_KeyDown`).
+- Attention : Hatari ignore les touches des joysticks tant que **Maj** est enfoncée (`Joy_KeyDown`). Et `runx.sh` envoie les touches à la première fenêtre « hatari » trouvée : une instance restée ouverte après un essai interrompu les capte toutes (`pgrep -a hatari`).
 - Débogueur : `--parse` avec des expressions relatives au programme, qui marchent quelle que soit l'adresse de chargement :
   - `b pc = TEXT && pc < $400000 :once :file f.ini` puis `info basepage` ;
   - `m "TEXT+$11EF6+$2B74-$F4A" 8` : variable `-$F4A(a4)` (a4 = TEXT + TEXT_len + BSS_len) ;
@@ -70,12 +70,12 @@ Fait (`src/p4.s`, `tools/patch_ss.py --p4`) et vérifié sous Hatari :
 - « mouse », jamais utilisable, devient « **none** » : valeur par défaut de la voiture verte, qui reste alors un drone. Un adaptateur absent ne peut donc pas l'inscrire par erreur ;
 - la voiture verte rejoint la course quand son contrôle accélère pendant « prepare to race » (`F_0F4E2`, vérifié), puis se pilote comme les autres. L'autre boucle d'inscription, `F_0E3CA` (appelée depuis `F_0DD20`), est aussi étendue à 4 voitures mais n'a pas encore été essayée.
 
-Vérifications faites (Hatari, EmuTOS) : ST + joystick parallèle, STE + joypad A. Mémoire : `ctl = [0,2,3,4]` ou `[0,2,3,6]`, `drone = [0,1,1,0]` après inscription.
+Vérifications faites (Hatari, EmuTOS) : ST + joystick parallèle, STE + joypad A. Mémoire : `ctl = [0,2,3,4]` ou `[0,2,3,6]`, `drone = [0,1,1,0]` après inscription. Partie complète sur ST (5 minutes) : course avec la voiture verte humaine, fin de partie, saisie des initiales, retour au titre, démo à 4 voitures, sans plantage ; `ctl[3]` garde sa valeur.
 
 Reste à faire :
 
 - **Affichage** : l'en-tête n'a que 3 colonnes (score, tours). La voiture verte n'a que la ligne du bas « DRONE LAP » ;
 - **Écran titre** (`F_0969A`, borné à 3) : la voiture verte ne peut pas lancer une partie, seulement la rejoindre ;
-- fin de partie, scores, saisie des initiales : boucles bornées à 3 à vérifier une par une (`F_01B3C`, `F_027A4`, `F_0CFEC`, `F_0EE60`, `F_101C6`…) ;
+- fin de course, classement, qualification pour la course suivante, scores et initiales de la voiture verte : boucles bornées à 3 à étudier une par une (`F_01B3C`, `F_027A4`, `F_0CFEC`, `F_0EE60`, `F_101C6`…) ;
 - deux voitures sur « none » sont refusées par la règle « contrôles en double » ;
 - essais sur machine réelle (adaptateur parallèle, joypads STE).
