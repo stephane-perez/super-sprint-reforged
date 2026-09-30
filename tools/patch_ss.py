@@ -2,6 +2,7 @@
 
     python3 tools/patch_ss.py SUPER2.DAT SSPRINT.PRG               # disque dur
     python3 tools/patch_ss.py SUPER2.DAT SSPRINT.PRG --p4 p4.bin   # + 4e voiture
+    ... --autopilot : pour les tests, voitures humaines conduites par l'IA
 
 SUPER2.DAT est le programme du jeu (PRG GEMDOS). Le fichier fourni doit être
 exactement celui de la version étudiée (MD5 ci-dessous). Chaque correctif
@@ -28,6 +29,14 @@ HD = [
     (0x5EC8, '7a083f3c', '60000058'),       # bra $5F22 (unlk / rts)
 ]
 
+# --autopilot (tests seulement) : dans la boucle des voitures ($2508), une
+# voiture humaine est conduite par l'IA (F_047E6) au lieu de F_031F6. Le jeu
+# la traite toujours comme humaine : on peut voir fins de course, podium et
+# courses suivantes sans savoir conduire au clavier.
+AUTOPILOT = [
+    (0x2508, '4eba0cec', '4eba22dc'),
+]
+
 def p4_patches(B):
     """B = adresse du code ajouté (fin du TEXT d'origine)."""
     def jsr_pc(at, target):                 # jsr d16(pc) + nop (6 octets)
@@ -47,6 +56,14 @@ def p4_patches(B):
         (0x6340, '303c00006000000a', jmp_abs(E(0)) + '4e71'),
         # table de sauts, entrée $24 (F_0624A, appelée une fois au démarrage)
         (0x0024, '4ef90000624a', jmp_abs(E(1))),
+        # table de sauts, entrée $132 (F_0A2E4, « DRONE LAP n ») : ligne du
+        # bas de la voiture verte quand elle est pilotée par un humain
+        (0x0132, '4ef90000a2e4', jmp_abs(E(7))),
+        # table de sauts, entrée $18c (F_0A546, décompression) : image des
+        # options / prepare to race / initiales avec 4 voitures
+        (0x018C, '4ef90000a546', jmp_abs(E(8))),
+        # F_0E850 : les 6 grands titres -> titles, puis saut à la suite
+        (0xE8A6, '3f3c00053f3c00203f3c', '4eb9%08x600000a0' % E(9)),
         # F_0E3CA (une voiture rejoint la course) : 4 voitures, pas de texte
         # d'en-tête pour la 4e
         (0xE422, '4eba0258', '4eba%04x' % ((E(2) - 0xE424) & 0xFFFF)),
@@ -69,7 +86,7 @@ def p4_patches(B):
         (0xED6E, '41ecde28d0c0', jsr_pc(0xED6E, E(4))),
         (0xED86, '41ecde36d0c0', jsr_pc(0xED86, E(3))),
         (0xED9E, '0c6e0003fffe', '0c6e0004fffe'),
-    ], [0x6342]                              # nouvelles relocations
+    ], [0x6342, 0xE8A8]                      # nouvelles relocations
 
 # Correctifs du DATA (décalage dans le DATA ; a4 pointe sur son début).
 # Même longueur que l'original, zéro final compris.
@@ -78,13 +95,19 @@ def txt(s, n):
     return (s.encode() + b' ' * n)[:n].hex()
 P4_DATA = [
     (0x1F4, txt('  mouse   ', 10), txt('   none   ', 10)),
+    # aide : 1re ligne supprimée (chaîne vide), 2e ligne condensée
     (0x23E, txt('use function keys to select controls for cars', 45),
-            txt(' ' * 9 + 'f5 - green car', 45)),
+            '00' + txt('', 44)),
+    (0x26C, txt('f2 - blue car   f3 - red car   f4 - yellow car', 46),
+            txt('%-46s' % (' ' * 5 + 'f2 blue  f3 red  f4 yellow  f5 green'), 46)),
 ]
 
 def main():
     a = sys.argv[1:]
     p4 = None
+    auto = '--autopilot' in a
+    if auto:
+        a.remove('--autopilot')
     if '--p4' in a:
         i = a.index('--p4'); p4 = open(a[i + 1], 'rb').read(); del a[i:i + 2]
     if len(a) != 2:
@@ -108,6 +131,8 @@ def main():
 
     data = bytearray(data)
     patches, newrel = list(HD), []
+    if auto:                                # tests seulement
+        patches += AUTOPILOT
     if p4:
         pp, newrel = p4_patches(TL)
         patches += pp
