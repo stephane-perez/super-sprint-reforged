@@ -142,7 +142,18 @@ def p4_patches(B):
                  '302effece248c07c00034e713d40ffea'),
         (0xD672, '0c6e0001fffa6700001a0c6e0001fffc670000100c6e0001fffe67000006',
                  '4eb9%08x4a406600001860000010' % E(10) + '4e71' * 7),
+        # son : le pilote n'a que 3 voies, indexées par la voiture. Entrées
+        # $156 (F_0814C, moteur) et $126 (F_085DC) : appelées avec la
+        # voiture brute (3 débordait des tableaux à 3 voies et coupait la
+        # voie 0, celle du bleu) -> enveloppes eng4 et snd4.
+        (0x0156, '4ef90000814c', jmp_abs(E(16))),
+        (0x0126, '4ef9000085dc', jmp_abs(E(17))),
     ]
+    # « voiture % 3 » avant les effets sonores -> jsr vmap (la verte prend
+    # la voie d'une voiture pilotée par l'ordinateur)
+    VMAP = (0x316, 0x33A, 0x916, 0xB3C, 0x120C, 0x1366, 0x3FB0, 0x42AC, 0x4740)
+    for at in VMAP:
+        P.append((at - 2, '48c081fc00034840', '4eb9%08x4e71' % E(15)))
     # tables de positions par voiture (3 cases dans l'original) -> 4 cases
     # dans le BSS ajouté, remplies par init
     TABLES = [(-0x2184, (0xD2F4, 0xD614)), (-0x218A, (0xD2E6, 0xD606)),
@@ -153,7 +164,7 @@ def p4_patches(B):
     for k, (disp, sites) in enumerate(TABLES):
         for at in sites:
             P.append((at, lea_a4(disp), lea_a4(P4B + 8 * k)))
-    return P, [0x6342, 0xE8A8, 0x97EE, 0xE34A, 0xD674]   # nouvelles relocations
+    return P, [0x6342, 0xE8A8, 0x97EE, 0xE34A, 0xD674] + list(VMAP)  # nouvelles relocations
 
 def reframe(text, start, end, link, moves, count):
     """Agrandit le cadre de pile d'une fonction (link a6,#n) et déplace ses

@@ -38,6 +38,8 @@ F_0F60C     equ     $f60c           ; idem, écran du choix du circuit
 F_0C224     equ     $c224           ; nombre (décompte)
 F_0A2E4     equ     $a2e4           ; chiffre « DRONE LAP n » en bas de l'écran
 F_0A31C     equ     $a31c           ; restauration du fond sous ce chiffre
+F_0814C     equ     $814c           ; son du moteur (voie, vitesse)
+F_085DC     equ     $85dc           ; effet sonore (voie)
 DRONE3      equ     -$f44           ; drone[3] (drone[i] : -$F4A(a4) + 2*i)
 LAPS3       equ     -$f42+6         ; tours de la voiture 3
 WRENCH3     equ     -$f72+6         ; clés à molette de la voiture 3
@@ -90,6 +92,9 @@ GREEN2      equ     $041            ; couleurs 1 et 2, libres dans cette bande)
             bra.w   col4b           ; +48 : F_0F60C (idem, choix du circuit)
             bra.w   col4c           ; +52 : F_0C224 (décompte d'un drone)
             bra.w   rst4            ; +56 : entrée $180 (F_0A31C)
+            bra.w   vmap            ; +60 : voie du son d'une voiture
+            bra.w   eng4            ; +64 : entrée $156 (F_0814C, moteur)
+            bra.w   snd4            ; +68 : entrée $126 (F_085DC)
 
 ; ----------------------------------------------------------------------------
 ; init : remplace l'appel de F_0624A au démarrage (jsr $24(a5)).
@@ -650,6 +655,56 @@ rst4        bsr.s   g4human
             adda.l  #F_0A31C,a0
             jmp     (a0)
 .no         rts
+
+; ----------------------------------------------------------------------------
+; Son : le pilote du jeu a 3 voies (une par voiture humaine : le moteur ;
+; les effets sonores des drones passent par voiture % 3). Pour la verte
+; (voiture 3), on prend la voie d'une des 3 premières voitures pilotée par
+; l'ordinateur, qui n'a pas de son de moteur ; s'il n'y en a pas (4
+; humains), la voie 0 pour les effets et pas de son de moteur.
+; vmap : d0.w = voiture -> d0.w = voie (0-2). Remplace « ext.l d0 /
+; divs #3,d0 / swap d0 » devant les appels d'effets sonores.
+; ----------------------------------------------------------------------------
+vmap        bsr.s   vfree
+            bpl.s   .ok
+            moveq   #0,d0
+.ok         rts
+
+; vfree : d0.w = voiture -> d0.w = voie, ou -1 (N = 1) si aucune voie libre
+vfree       cmpi.w  #3,d0
+            blo.s   .own
+            move.l  a0,-(a7)
+            lea     DRONES(a4),a0
+            moveq   #0,d0
+.l          tst.w   (a0)+
+            bne.s   .fnd
+            addq.w  #1,d0
+            cmpi.w  #3,d0
+            blo.s   .l
+            moveq   #-1,d0
+.fnd        movea.l (a7)+,a0
+            tst.w   d0
+            rts
+.own        tst.w   d0
+            rts
+
+; eng4 : entrée $156, F_0814C(voiture, vitesse)
+eng4        move.w  4(a7),d0
+            bsr.s   vfree
+            bmi.s   .no
+            move.w  d0,4(a7)
+            move.l  a5,a0
+            adda.l  #F_0814C,a0
+            jmp     (a0)
+.no         rts
+
+; snd4 : entrée $126, F_085DC(voiture)
+snd4        move.w  4(a7),d0
+            bsr.s   vmap
+            move.w  d0,4(a7)
+            move.l  a5,a0
+            adda.l  #F_085DC,a0
+            jmp     (a0)
 
 ; bgcol : d3 = couleur du fond de la course en (96, 199)
 bgcol       movea.l BACKGND(a4),a0
