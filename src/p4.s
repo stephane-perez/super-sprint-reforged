@@ -317,9 +317,10 @@ dec4        move.l  4(a7),d0
 ; pic4 : image « 3 voitures » en a0 (320x200, 4 plans). La rouge (lignes
 ; 126-167, blocs de 16 pixels 5 à 14) est déplacée de 5 blocs à gauche (sous
 ; la bleue) ; une copie recolorée est posée 5 blocs à droite (sous la
-; jaune). Recoloration par plans : 4 et 6 (rouges) -> 1, 3 et 5 -> 2.
-;   M1 = ~p0 & p2 & ~p3        (couleurs 4, 6)
-;   M2 = p0 & ~p3 & (p1 ^ p2)  (couleurs 3, 5)
+; jaune). Recoloration par plans, sans orange (9 et 10 sont partagées avec
+; la rouge dans la même bande du raster) : 4, 6, 10 -> 1 ; 3, 5, 9 -> 2.
+;   M1 = ~p0 & (p2 ^ p3) & (~p3 | p1)                  (couleurs 4, 6, 10)
+;   M2 = p0 & (p1 ^ p2 ^ p3) & ~(p1 & p2 & p3)         (couleurs 3, 5, 9)
 pic4        lea     126*160(a0),a2
             moveq   #41,d7          ; 42 lignes
 .row        lea     -80(a7),a7      ; une ligne de 10 blocs
@@ -338,16 +339,24 @@ pic4        lea     126*160(a0),a2
             lea     10*8(a2),a1
             lea     10.w,a0
 .grn        movem.w (a3)+,d0-d3
-            move.w  d3,d6
-            not.w   d6              ; ~p3
-            move.w  d0,d4
-            not.w   d4
-            and.w   d2,d4
-            and.w   d6,d4           ; M1
+            move.w  d2,d4
+            eor.w   d3,d4           ; p2 ^ p3
+            move.w  d3,d5
+            not.w   d5
+            or.w    d1,d5           ; ~p3 | p1
+            and.w   d5,d4
+            move.w  d0,d5
+            not.w   d5
+            and.w   d5,d4           ; M1
             move.w  d1,d5
             eor.w   d2,d5
-            and.w   d0,d5
-            and.w   d6,d5           ; M2
+            eor.w   d3,d5           ; p1 ^ p2 ^ p3
+            move.w  d1,d6
+            and.w   d2,d6
+            and.w   d3,d6
+            not.w   d6              ; ~(p1 & p2 & p3)
+            and.w   d6,d5
+            and.w   d0,d5           ; M2
             move.w  d4,d6
             or.w    d5,d6
             not.w   d6              ; ~(M1|M2)

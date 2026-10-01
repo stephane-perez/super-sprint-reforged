@@ -119,7 +119,7 @@ Environ 45 boucles sont bornées à 3 (joueurs humains) dans une vingtaine de fo
 | DATA `+$23E` | « use function keys to select controls for cars » | chaîne vide |
 | DATA `+$26C` | « f2 - blue car   f3 - red car   f4 - yellow car » | « f2 blue  f3 red  f4 yellow  f5 green » |
 | table de sauts `$132` → `hud4` | `jmp F_0A2E4` | Voiture verte humaine : ligne du bas « GREEN CAR », clés, tour, score |
-| table de sauts `$18C` → `dec4` | `jmp F_0A546` | Image « 3 voitures » : la rouge passe sous la bleue, copie verte sous la jaune (recoloration par plans) ; palette P2 : couleurs 1-2 vertes ; P0[4] vert |
+| table de sauts `$18C` → `dec4` | `jmp F_0A546` | Image « 3 voitures » : la rouge passe sous la bleue, copie verte sous la jaune (recoloration par plans : 4, 6, 10 → 1 ; 3, 5, 9 → 2, sans orange car 9 et 10 sont partagées avec la rouge dans la même bande) ; palette P2 : couleurs 1-2 vertes ; P0[4] vert |
 | `$E8A6` → `titles` | 6 appels de `F_0C4F8` | Titres des 4 voitures en haut, sur 4 colonnes (bleue, rouge, jaune, verte), comme « prepare to race » |
 | `$97EC` → `alldrone` | `drone[0] & drone[1] & drone[2]` | Fin de partie : les 4 voitures |
 | 11 calculs `base + $6B*i` | | 4 colonnes de 80 pixels : `base - 11 + $50*i` |
