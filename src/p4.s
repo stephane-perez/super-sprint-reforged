@@ -130,9 +130,12 @@ chkmch      move.l  $5a0.w,d0       ; _p_cookies
             move.l  (a0)+,d1
             cmpi.l  #'_MCH',d0
             bne.s   .loop
-            cmpi.l  #$00010000,d1   ; STE ($00010010 = Mega STE : pas de ports
-            beq.s   .yes            ; joypad, seulement l'adaptateur parallèle)
-            cmpi.l  #$00030000,d1   ; Falcon
+            cmpi.l  #$00010010,d1   ; Mega STE : pas de ports joypad,
+            beq.s   .no             ; seulement l'adaptateur parallèle
+            swap    d1              ; 1 = STE (toutes variantes), 3 = Falcon
+            cmpi.w  #1,d1
+            beq.s   .yes
+            cmpi.w  #3,d1
             bne.s   .no
 .yes        lea     haspad(pc),a0
             st      (a0)
@@ -201,30 +204,40 @@ readext     moveq   #0,d0
             andi.b  #$80,d1
             or.b    d1,d0
             bra.s   .done
-            ; --- joypads STE : $FF9202 = sélection de ligne (écriture) et
-            ; directions (lecture, bits 8-11 pad A, 12-15 pad B, actifs à 0),
-            ; $FF9200 = tirs (bit 1 pad A, bit 3 pad B, actifs à 0).
+            ; --- joypads STE : $FF9202 = sélection de ligne (écriture :
+            ; bits 0-3 pad A, 4-7 pad B, ligne choisie à 0) et directions
+            ; (lecture, ligne 0 : bits 8-11 pad A, 12-15 pad B, actifs à 0) ;
+            ; $FF9200 = bouton de la ligne choisie (bit 1 pad A, bit 3 pad B,
+            ; actif à 0) : A en ligne 0, B en ligne 1, C en ligne 2. Le tir
+            ; est l'un des trois.
 .pad        move.b  haspad(pc),d2
             beq.s   .done
-            cmpi.w  #7,d1
-            beq.s   .padb
-            move.w  #$fffe,$ffff9202.w
-            move.w  $ffff9202.w,d0
-            move.w  $ffff9200.w,d2
+            moveq   #1,d2           ; pad A : bouton en bit 1, lignes en
+            cmpi.w  #7,d1           ; bits 0-3 (d1 = contrôle demandé)
+            seq     d1
+            andi.w  #4,d1
+            beq.s   .pa
+            moveq   #3,d2           ; pad B : bit 3, lignes en bits 4-7
+.pa         move.w  #$fffe,d0
+            rol.w   d1,d0           ; ligne 0
+            move.w  d0,$ffff9202.w
+            move.w  $ffff9202.w,d0  ; directions
             lsr.w   #8,d0
-            btst    #1,d2
-            bra.s   .padx
-.padb       move.w  #$ffef,$ffff9202.w
-            move.w  $ffff9202.w,d0
-            move.w  $ffff9200.w,d2
-            lsr.w   #8,d0
-            lsr.w   #4,d0
-            btst    #3,d2
-.padx       seq     d1
+            lsr.w   d1,d0
             not.b   d0
             andi.b  #$0f,d0
-            andi.b  #$80,d1
-            or.b    d1,d0
+            movem.l d3-d4,-(a7)
+            moveq   #2,d4           ; lignes 0, 1, 2 : boutons A, B, C
+            move.w  #$fffe,d3
+            rol.w   d1,d3
+.btn        move.w  d3,$ffff9202.w
+            move.w  $ffff9200.w,d1
+            btst    d2,d1
+            bne.s   .nb
+            bset    #7,d0           ; appuyé
+.nb         rol.w   #1,d3
+            dbra    d4,.btn
+            movem.l (a7)+,d3-d4
             move.w  #$ffff,$ffff9202.w
 .done       lea     extval(pc),a0
             move.b  d0,(a0)
