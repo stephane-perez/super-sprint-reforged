@@ -55,6 +55,10 @@ F_0C4F8     equ     $c4f8           ; grand titre (écran, texte, couleur, x, y)
 PIC3CARS    equ     -$66            ; image compressée « 3 voitures » (options,
                                     ; prepare to race, initiales)
 PALS        equ     -$16de          ; palettes du raster de ces écrans
+TSPAL       equ     -$179e          ; palettes du raster du choix du circuit ;
+                                    ; bande 0 (textes du haut) : couleurs 1-3 =
+                                    ; bleu, rouge, jaune, 4 = $567 (gris), ne
+                                    ; sert qu'à la 4e colonne
 ; Le patcheur agrandit le BSS de BSSX octets : ils apparaissent sous le BSS
 ; d'origine, en P4B(a4). On y range les tables par voiture à 4 cases.
 BSSX        equ     256             ; utilisés : 80 + 48 + 40
@@ -112,6 +116,7 @@ init        move.w  #CTL3_DEF,CTL+6(a4)
             move.w  3*6+4(a0),7*6+4(a0)
             move.l  #$05730040,3*6(a0)      ; 3 = verte humaine :
             move.w  #$0070,3*6+4(a0)        ; clair, foncé, principal
+            move.w  #GREEN1,TSPAL+8(a4)     ; choix du circuit : texte vert
             movem.l d1-d2/a0-a2,-(a7)
             pea     chkmch(pc)
             move.w  #38,-(a7)       ; Supexec
