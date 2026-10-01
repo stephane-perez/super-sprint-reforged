@@ -70,6 +70,9 @@ def p4_patches(B):
         # table de sauts, entrée $18c (F_0A546, décompression) : image des
         # options / prepare to race / initiales avec 4 voitures
         (0x018C, '4ef90000a546', jmp_abs(E(6))),
+        # table de sauts, entrée $180 (F_0A31C, restaure le fond sous le
+        # chiffre du drone à chaque image) : rien si la verte est humaine
+        (0x0180, '4ef90000a31c', jmp_abs(E(14))),
         # F_0E850 : les 6 grands titres -> titles, puis saut à la suite
         (0xE8A6, '3f3c00053f3c00203f3c', '4eb9%08x600000a0' % E(7)),
         # F_0975A : fin de partie si les 4 voitures sont des drones

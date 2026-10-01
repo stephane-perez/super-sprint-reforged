@@ -37,6 +37,7 @@ F_0E78C     equ     $e78c           ; « press accelerate to play/continue »
 F_0F60C     equ     $f60c           ; idem, écran du choix du circuit
 F_0C224     equ     $c224           ; nombre (décompte)
 F_0A2E4     equ     $a2e4           ; chiffre « DRONE LAP n » en bas de l'écran
+F_0A31C     equ     $a31c           ; restauration du fond sous ce chiffre
 DRONE3      equ     -$f44           ; drone[3] (drone[i] : -$F4A(a4) + 2*i)
 LAPS3       equ     -$f42+6         ; tours de la voiture 3
 WRENCH3     equ     -$f72+6         ; clés à molette de la voiture 3
@@ -56,7 +57,7 @@ PIC3CARS    equ     -$66            ; image compressée « 3 voitures » (option
 PALS        equ     -$16de          ; palettes du raster de ces écrans
 ; Le patcheur agrandit le BSS de BSSX octets : ils apparaissent sous le BSS
 ; d'origine, en P4B(a4). On y range les tables par voiture à 4 cases.
-BSSX        equ     256             ; utilisés : 80 + 48
+BSSX        equ     256             ; utilisés : 80 + 48 + 40
 P4B         equ     -$2b74-BSSX
 NPOS        equ     10              ; tables de positions (x ou y), 4 mots
 DRONES      equ     -$f4a           ; drone[4]
@@ -84,6 +85,7 @@ GREEN2      equ     $041            ; couleurs 1 et 2, libres dans cette bande)
             bra.w   col4a           ; +44 : F_0E78C (colonne d'un drone)
             bra.w   col4b           ; +48 : F_0F60C (idem, choix du circuit)
             bra.w   col4c           ; +52 : F_0C224 (décompte d'un drone)
+            bra.w   rst4            ; +56 : entrée $180 (F_0A31C)
 
 ; ----------------------------------------------------------------------------
 ; init : remplace l'appel de F_0624A au démarrage (jsr $24(a5)).
@@ -91,6 +93,10 @@ GREEN2      equ     $041            ; couleurs 1 et 2, libres dans cette bande)
 ; ports joypad (cookie _MCH = STE ou Falcon), puis continue vers F_0624A.
 ; ----------------------------------------------------------------------------
 init        move.w  #CTL3_DEF,CTL+6(a4)
+            lea     HUDST(a4),a0    ; ligne du bas de la verte : rien dessiné
+            moveq   #2*HUDSZ/4-1,d0
+.hst        clr.l   (a0)+
+            dbra    d0,.hst
             lea     postab(pc),a0   ; tables de positions à 4 voitures
             lea     P4B(a4),a1
             moveq   #NPOS*4-1,d0
@@ -476,30 +482,68 @@ col4r       rts
 ; Bande effacée : lignes 193-199, x = 96-271 (les arbres de certains
 ; circuits commencent vers x = 280), avec la couleur du fond de la course
 ; relevée en (96, 199).
+; Tout redessiner à chaque image coûtait environ 30000 cycles et faisait
+; passer la course de 50 à 25 images/s. On garde donc, pour chacun des deux
+; écrans (double tampon), ce qui y est déjà dessiné : adresse de l'écran,
+; témoin (8 octets du « G » de GREEN, relus après dessin) et les 8 chiffres
+; affichés. Si l'écran est connu et le témoin intact, on ne redessine que
+; les chiffres qui ont changé ; sinon (début de course, écran repeint), tout.
 ; ----------------------------------------------------------------------------
 HUDX        equ     96
 HUDY        equ     194
+HUDST       equ     P4B+128         ; 2 x 20 octets : écran.l, témoin (8),
+HUDSZ       equ     20              ; chiffres affichés (8)
+HUDWIT      equ     (HUDY+1)*160+(HUDX+4)/16*8
+SHOWN       equ     -$52            ; écran affiché (l'autre tampon)
 
-hud4        tst.w   DRONE3(a4)
-            bne.s   .orig
-            cmpi.w  #1,CTL+6(a4)    ; pas de contrôle (démo...) : original
+hud4        bsr     g4human
             bne.s   .human
-.orig       move.l  a5,a0
+            move.l  a5,a0
             adda.l  #F_0A2E4,a0
             jmp     (a0)
 .human      movem.l d2-d7/a2-a3,-(a7)
             movea.l SCREEN(a4),a1
-            ; couleur de la bande : pixel (96, 199) de l'image de fond
-            movea.l BACKGND(a4),a0
-            lea     199*160+HUDX/2(a0),a0
-            moveq   #0,d3
-            addq.w  #8,a0
-            moveq   #3,d1
-.col        move.w  -(a0),d0        ; plans 3, 2, 1, 0
-            add.w   d0,d0           ; bit 15 -> X
-            addx.w  d3,d3
-            dbra    d1,.col
-            ; mots des 4 plans pour cette couleur
+            lea     FONT(a4),a3
+            ; chiffres à afficher (indices de la police) : clés, tour, score
+            subq.l  #8,a7
+            movea.l a7,a0
+            move.w  WRENCH3(a4),d0
+            bsr     clamp9
+            move.w  LAPS3(a4),d0
+            bsr     clamp9
+            lea     SCORE3(a4),a2
+            moveq   #5,d1
+.cs         move.b  (a2)+,d0
+            bpl.s   .cs1
+            moveq   #38,d0          ; vide : espace
+.cs1        move.b  d0,(a0)+
+            dbra    d1,.cs
+            ; entrée de cet écran
+            lea     HUDST(a4),a2
+            cmpa.l  (a2),a1
+            beq.s   .known
+            lea     HUDSZ(a2),a2
+            cmpa.l  (a2),a1
+            beq.s   .known
+            lea     HUDST(a4),a2    ; nouvel écran : on remplace l'entrée
+            move.l  SHOWN(a4),d0    ; qui n'est pas celle de l'écran affiché
+            cmp.l   (a2),d0
+            bne.s   .full
+            lea     HUDSZ(a2),a2
+            bra.s   .full
+.known      move.l  HUDWIT(a1),d0
+            cmp.l   4(a2),d0
+            bne.s   .full
+            move.l  HUDWIT+4(a1),d0
+            cmp.l   8(a2),d0
+            beq.w   .digits
+.full       move.l  a1,(a2)
+            moveq   #-1,d0          ; aucun chiffre affiché
+            move.l  d0,12(a2)
+            move.l  d0,16(a2)
+            move.l  a2,d6
+            bsr     bgcol
+            ; mots des 4 plans pour la couleur de fond d3
             moveq   #0,d4
             moveq   #0,d5
             btst    #0,d3
@@ -516,15 +560,14 @@ hud4        tst.w   DRONE3(a4)
             move.w  #$ffff,d5
 .fill       lea     193*160+HUDX/2(a1),a2
             moveq   #6,d1           ; 7 lignes
-.frow       movea.l a2,a3
+.frow       movea.l a2,a0
             moveq   #10,d0          ; 11 blocs de 16 pixels
-.fblk       move.l  d4,(a3)+
-            move.l  d5,(a3)+
+.fblk       move.l  d4,(a0)+
+            move.l  d5,(a0)+
             dbra    d0,.fblk
             lea     160(a2),a2
             dbra    d1,.frow
-            ; textes
-            lea     FONT(a4),a3
+            ; textes fixes
             move.w  #HUDX+4,d2
             moveq   #15,d7          ; blanc
             lea     txtgreen(pc),a2
@@ -533,31 +576,72 @@ hud4        tst.w   DRONE3(a4)
             move.w  #HUDX+70,d2
             lea     gwrench(pc),a0
             bsr     putc
-            addq.w  #4,d2           ; icône plus large qu'un caractère
-            move.w  WRENCH3(a4),d0
-            cmpi.w  #9,d0
-            bls.s   .w9
-            moveq   #9,d0
-.w9         bsr     putdig
             move.w  #HUDX+90,d2
             lea     txtlap(pc),a2
             bsr     puts
-            move.w  LAPS3(a4),d0
-            cmpi.w  #9,d0
-            bls.s   .l9
-            moveq   #9,d0
-.l9         bsr     putdig
-            move.w  #HUDX+134,d2
-            lea     SCORE3(a4),a2
-            moveq   #5,d6
-.sc         move.b  (a2)+,d0
-            bmi.s   .blank
+            movea.l d6,a2
+            move.l  HUDWIT(a1),4(a2)        ; témoin
+            move.l  HUDWIT+4(a1),8(a2)
+.digits     bsr     bgcol
+            move.w  d3,d7           ; d7 = fond << 16 | encre (noir)
+            swap    d7
+            clr.w   d7
+            moveq   #0,d6
+.dl         move.b  (a7,d6.w),d0
+            cmp.b   12(a2,d6.w),d0
+            beq.s   .dn
+            move.b  d0,12(a2,d6.w)
             ext.w   d0
-            bsr     putdig
-            bra.s   .scn
-.blank      addq.w  #6,d2
-.scn        dbra    d6,.sc
+            move.w  d6,d1
+            add.w   d1,d1
+            move.w  digx(pc,d1.w),d2
+            lsl.w   #3,d0
+            lea     (a3,d0.w),a0
+            bsr     putcell
+.dn         addq.w  #1,d6
+            cmpi.w  #8,d6
+            bne.s   .dl
+            addq.l  #8,a7
             movem.l (a7)+,d2-d7/a2-a3
+            rts
+; x des 8 chiffres : clés, tour, score (6)
+digx        dc.w    HUDX+80,HUDX+114
+            dc.w    HUDX+134,HUDX+140,HUDX+146,HUDX+152,HUDX+158,HUDX+164
+
+clamp9      cmpi.w  #9,d0
+            bls.s   .ok
+            moveq   #9,d0
+.ok         move.b  d0,(a0)+
+            rts
+
+; g4human : Z = 0 si la voiture verte est pilotée par un humain
+g4human     tst.w   DRONE3(a4)
+            bne.s   .no
+            cmpi.w  #1,CTL+6(a4)    ; pas de contrôle (démo...)
+            beq.s   .no
+            moveq   #1,d0
+            rts
+.no         moveq   #0,d0
+            rts
+
+; rst4 : remplace F_0A31C (entrée $180), qui recopie à chaque image le bloc
+; du chiffre de « DRONE LAP n » depuis le fond ; il effacerait notre ligne.
+rst4        bsr.s   g4human
+            bne.s   .no
+            move.l  a5,a0
+            adda.l  #F_0A31C,a0
+            jmp     (a0)
+.no         rts
+
+; bgcol : d3 = couleur du fond de la course en (96, 199)
+bgcol       movea.l BACKGND(a4),a0
+            lea     199*160+HUDX/2+8(a0),a0
+            moveq   #0,d3
+            moveq   #3,d1
+.col        move.w  -(a0),d0        ; plans 3, 2, 1, 0
+            add.w   d0,d0           ; bit 15 -> X
+            addx.w  d3,d3
+            dbra    d1,.col
             rts
 
 ; puts : chaîne a2 (indices de la police, -1 = fin) en x = d2, couleur d7
@@ -609,6 +693,57 @@ putc        movem.l d2-d5/a2-a3,-(a7)
             lea     160(a2),a2
             dbra    d5,.row
             movem.l (a7)+,d2-d5/a2-a3
+            addq.w  #6,d2
+            rts
+
+; putcell : glyphe a0 dans une case de 6 pixels en x = d2, ligne HUDY,
+; écran a1 : pixels du glyphe en couleur d7.w, reste de la case en couleur
+; (d7 >> 16) ; remplace donc l'ancien caractère. Avance x de 6.
+putcell     movem.l d2-d6/a2-a3,-(a7)
+            movea.l a0,a3
+            move.w  d2,d3
+            lsr.w   #4,d3
+            lsl.w   #3,d3
+            lea     HUDY*160(a1),a2
+            adda.w  d3,a2
+            andi.w  #15,d2
+            moveq   #4,d5
+.row        moveq   #0,d3
+            move.b  (a3)+,d3
+            ror.l   #8,d3
+            lsr.l   d2,d3           ; glyphe g
+            move.l  #$fc000000,d4
+            lsr.l   d2,d4           ; case c
+            movea.l a2,a0
+            moveq   #0,d1
+.plane      moveq   #0,d6
+            btst    d1,d7
+            beq.s   .nofg
+            move.l  d3,d6           ; encre : g
+.nofg       move.w  d1,d0
+            addi.w  #16,d0
+            btst    d0,d7
+            beq.s   .nobg
+            move.l  d4,d0
+            eor.l   d3,d0           ; fond : c & ~g
+            or.l    d0,d6
+.nobg       move.l  d4,d0
+            not.l   d0
+            swap    d0
+            swap    d6
+            and.w   d0,(a0)
+            or.w    d6,(a0)
+            swap    d0
+            swap    d6
+            and.w   d0,8(a0)
+            or.w    d6,8(a0)
+            addq.l  #2,a0
+            addq.w  #1,d1
+            cmpi.w  #4,d1
+            blt.s   .plane
+            lea     160(a2),a2
+            dbra    d5,.row
+            movem.l (a7)+,d2-d6/a2-a3
             addq.w  #6,d2
             rts
 
