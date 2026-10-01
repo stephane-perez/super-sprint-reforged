@@ -2,7 +2,7 @@
 
 *[English version](README.md)*
 
-Rétro-ingénierie, correctifs et outils pour **Super Sprint** (Electric Dreams, 1986) sur Atari ST, avec les méthodes et outils d'[IK+ Reforged](../README_FR.md) :
+Rétro-ingénierie, correctifs et outils pour **Super Sprint** (Electric Dreams, 1986) sur Atari ST, avec les méthodes et outils d'[IK+ Reforged](https://github.com/stephane-perez/ik-plus-reforged/blob/master/README_FR.md) :
 
 - **installation sur disque dur** : la protection restante (lecture du secteur de boot de la disquette) est neutralisée ; le jeu tourne depuis un disque dur (testé sous EmuTOS, sur ST et STE) ;
 - **4e joueur** : la voiture verte, jusqu'ici toujours pilotée par l'ordinateur (le « drone »), peut être prise par un humain ;
@@ -39,7 +39,8 @@ L'adaptateur parallèle est celui de *Gauntlet II*, *Leatherneck* ou *Dynabuster
 Prérequis : `make`, un compilateur C (pour vasm), `python3`, `curl` ou `git`.
 
 ```sh
-cd super-sprint
+git clone https://github.com/stephane-perez/super-sprint-reforged
+cd super-sprint-reforged
 make                                   # code de la 4e voiture : build/p4.bin
 make game GAME=/chemin/vers/SSPRINT    # corrige VOTRE copie
 make check                             # vérifie le résultat
@@ -62,3 +63,14 @@ make check                             # vérifie le résultat
 - `tools/patch_ss.py` : applique les correctifs (vérifie le MD5 et chaque octet d'origine), ajoute le code de `src/p4.s` à la fin du TEXT et réécrit la table de relocation.
 - `hatari/run.sh` (sans écran) et `hatari/runx.sh` (Xvfb + xdotool, avec joysticks, joypads STE et port parallèle, voir `joy4.cfg`). EmuTOS suffit : aucune ROM Atari n'est nécessaire.
 - `docs/fr/` : méthode, constats, carte du code.
+
+## Crédits
+
+- *Super Sprint* : Atari Games (arcade, 1986) ; version Atari ST par State of the Art pour Electric Dreams (programmation : Nalin Sharma, Martin Green, Jon Steele ; graphismes : Chris Gibbs ; son : Mark Tisdale).
+- [vasm](http://sun.hasenbraten.de/vasm/) : Volker Barthelmann et Frank Wille.
+- [Hatari](https://hatari.tuxfamily.org/) et [EmuTOS](https://emutos.sourceforge.io/) : l'émulateur et le TOS libre utilisés pour les essais.
+- [Capstone](https://www.capstone-engine.org/) : le moteur de désassemblage.
+
+## Licence
+
+Le code et la documentation originaux de ce dépôt sont publiés sous [licence MIT](LICENSE). Cette licence ne couvre en aucun cas Super Sprint.

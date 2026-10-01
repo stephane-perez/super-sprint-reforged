@@ -2,7 +2,7 @@
 
 *[Version française](README_FR.md)*
 
-Reverse engineering, patches and tools for **Super Sprint** (Electric Dreams, 1986) on the Atari ST, using the methods and tools of [IK+ Reforged](../README.md):
+Reverse engineering, patches and tools for **Super Sprint** (Electric Dreams, 1986) on the Atari ST, using the methods and tools of [IK+ Reforged](https://github.com/stephane-perez/ik-plus-reforged):
 
 - **hard disk install**: the remaining protection (a read of the floppy's boot sector) is removed; the game runs from a hard disk (tested under EmuTOS, on ST and STE);
 - **4th player**: the green car, which was always driven by the computer (the "drone"), can be driven by a human;
@@ -39,7 +39,8 @@ The parallel adapter is the one used by *Gauntlet II*, *Leatherneck* or *Dynabus
 Requirements: `make`, a C compiler (for vasm), `python3`, `curl` or `git`.
 
 ```sh
-cd super-sprint
+git clone https://github.com/stephane-perez/super-sprint-reforged
+cd super-sprint-reforged
 make                                 # 4th player code: build/p4.bin
 make game GAME=/path/to/SSPRINT      # patches YOUR copy
 make check                           # checks the result
@@ -62,3 +63,14 @@ make check                           # checks the result
 - `tools/patch_ss.py`: applies the patches (checks the MD5 and every original byte), appends the code of `src/p4.s` to the TEXT segment and rewrites the relocation table.
 - `hatari/run.sh` (headless) and `hatari/runx.sh` (Xvfb + xdotool, with joysticks, STE joypads and the parallel port, see `joy4.cfg`). EmuTOS is enough: no Atari ROM is needed.
 - `docs/fr/`: methodology, findings, code map (in French).
+
+## Credits
+
+- *Super Sprint*: Atari Games (arcade, 1986); Atari ST version by State of the Art for Electric Dreams (programming: Nalin Sharma, Martin Green, Jon Steele; graphics: Chris Gibbs; sound: Mark Tisdale).
+- [vasm](http://sun.hasenbraten.de/vasm/): Volker Barthelmann and Frank Wille.
+- [Hatari](https://hatari.tuxfamily.org/) and [EmuTOS](https://emutos.sourceforge.io/): the emulator and the free TOS used for testing.
+- [Capstone](https://www.capstone-engine.org/): the disassembly engine.
+
+## License
+
+The original code and documentation in this repository are released under the [MIT license](LICENSE). This license does not cover Super Sprint in any way.

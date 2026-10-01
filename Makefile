@@ -14,7 +14,7 @@
 PY    ?= python3
 GAME  ?= SSPRINT
 P4    ?= 1
-VASM  ?= $(shell command -v vasmm68k_mot 2>/dev/null || echo ../.tools/vasm/vasmm68k_mot)
+VASM  ?= $(shell command -v vasmm68k_mot 2>/dev/null || echo .tools/vasm/vasmm68k_mot)
 B     := build
 VFLAGS := -quiet -m68000
 DATA  := SUPER.DAT SUPER1.DAT INIT.DAT SSPRINT.HSC SSPRINT.SEQ
@@ -28,7 +28,7 @@ endif
 all: $(B)/p4.bin
 
 $(VASM):
-	sh ../scripts/get-vasm.sh ../.tools
+	sh scripts/get-vasm.sh .tools
 
 vasm: $(VASM)
 

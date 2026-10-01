@@ -1,0 +1,47 @@
+name: build
+
+# Builds what does not need the game: the 4th-player code (build/p4.bin),
+# and checks the Python tools. No game file is ever downloaded, stored or
+# produced here. Pushing a v* tag also publishes a GitHub release.
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache vasm
+        uses: actions/cache@v4
+        with:
+          path: .tools
+          key: vasm-${{ runner.os }}-${{ hashFiles('scripts/get-vasm.sh') }}
+
+      - name: Build vasm (68000 assembler)
+        run: sh scripts/get-vasm.sh .tools
+
+      - name: Build
+        run: make VASM=.tools/vasm/vasmm68k_mot
+
+      - name: Check the Python tools
+        run: python3 -m py_compile tools/*.py
+
+      - name: Upload the build
+        uses: actions/upload-artifact@v4
+        with:
+          name: super-sprint-reforged
+          path: build/p4.bin
+
+      - name: Publish the release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+          files: build/p4.bin
