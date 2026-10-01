@@ -693,7 +693,8 @@ rst4        bsr.s   g4human
 ; les effets sonores des drones passent par voiture % 3). Pour la verte
 ; (voiture 3), on prend la voie d'une des 3 premières voitures pilotée par
 ; l'ordinateur, qui n'a pas de son de moteur ; s'il n'y en a pas (4
-; humains), la voie 0 pour les effets et pas de son de moteur.
+; humains), la voie 0 pour les effets et la voie de la jaune, une image sur
+; deux, pour le moteur.
 ; vmap : d0.w = voiture -> d0.w = voie (0-2). Remplace « ext.l d0 /
 ; divs #3,d0 / swap d0 » devant les appels d'effets sonores.
 ; ----------------------------------------------------------------------------
@@ -720,12 +721,32 @@ vfree       cmpi.w  #3,d0
 .own        tst.w   d0
             rts
 
-; eng4 : entrée $156, F_0814C(voiture, vitesse)
+; eng4 : entrée $156, F_0814C(voiture, vitesse), appelée à chaque image pour
+; chaque voiture humaine. À 4 humains, la verte partage la voie de la jaune
+; (SHAREV) : une image sur deux chacune (le YM ne mélange pas deux sons sur
+; une voie ; l'alternance à 25 Hz fait entendre les deux moteurs).
+SHAREV      equ     2
+FRAMES      equ     -$1f88          ; compteur d'images (échanges d'écran)
 eng4        move.w  4(a7),d0
-            bsr.s   vfree
-            bmi.s   .no
-            move.w  d0,4(a7)
-            move.l  a5,a0
+            cmpi.w  #3,d0
+            beq.s   .green
+            cmpi.w  #SHAREV,d0
+            bne.s   .call
+            moveq   #3,d0           ; la verte est-elle humaine sans voie
+            bsr.s   vfree           ; libre ?
+            bpl.s   .call
+            bsr     g4human
+            beq.s   .call
+            btst    #0,FRAMES+1(a4) ; images impaires : la verte
+            bne.s   .no
+            bra.s   .call
+.green      bsr.s   vfree
+            bpl.s   .set
+            btst    #0,FRAMES+1(a4)
+            beq.s   .no
+            moveq   #SHAREV,d0
+.set        move.w  d0,4(a7)
+.call       move.l  a5,a0
             adda.l  #F_0814C,a0
             jmp     (a0)
 .no         rts
