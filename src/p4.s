@@ -582,6 +582,7 @@ hud4        bsr     g4human
             beq.s   .known
             lea     HUDST(a4),a2    ; nouvel écran : on remplace l'entrée
             move.l  SHOWN(a4),d0    ; qui n'est pas celle de l'écran affiché
+            addi.l  #HUDY*160,d0    ; (les entrées gardent la ligne HUDY)
             cmp.l   (a2),d0
             bne.s   .full
             lea     HUDSZ(a2),a2
