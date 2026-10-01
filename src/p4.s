@@ -54,6 +54,7 @@ XTAB_K      equ     -$21dc          ; même table, indexée par touche F2..F4
 NAMES       equ     -$21ca          ; 4 pointeurs vers les noms des contrôles
 F_0A546     equ     $a546           ; décompression d'une image
 F_0C4F8     equ     $c4f8           ; grand titre (écran, texte, couleur, x, y)
+F_0AFCE     equ     $afce           ; image n (blocs 8x8) dans un tampon
 PIC3CARS    equ     -$66            ; image compressée « 3 voitures » (options,
                                     ; prepare to race, initiales)
 PALS        equ     -$16de          ; palettes du raster de ces écrans
@@ -95,6 +96,7 @@ GREEN2      equ     $041            ; couleurs 1 et 2, libres dans cette bande)
             bra.w   vmap            ; +60 : voie du son d'une voiture
             bra.w   eng4            ; +64 : entrée $156 (F_0814C, moteur)
             bra.w   snd4            ; +68 : entrée $126 (F_085DC)
+            bra.w   title5          ; +72 : entrée $24C (F_0AFCE, images)
 
 ; ----------------------------------------------------------------------------
 ; init : remplace l'appel de F_0624A au démarrage (jsr $24(a5)).
@@ -343,6 +345,35 @@ dec4        move.l  4(a7),d0
             move.w  #GREEN2,PALS+$40+4(a4)
             rts
 
+; ----------------------------------------------------------------------------
+; Écran titre : « AI WORK BY CLAUDE » au-dessus de « (c) 1986 ATARI GAMES »
+; (lignes 193-197, couleur 5, fin en x = 300), dans la même petite police.
+; L'image du titre est l'image n° 8 de F_0AFCE(n, tampon) (entrée $24C), qui
+; la reconstitue par blocs de 8x8 dans le tampon avant chaque affichage.
+; ----------------------------------------------------------------------------
+AIX         equ     199
+AIY         equ     185
+title5      move.l  6(a7),-(a7)     ; F_0AFCE(n, tampon)
+            move.w  8(a7),-(a7)
+            move.l  a5,a0
+            adda.l  #F_0AFCE,a0
+            jsr     (a0)
+            addq.l  #6,a7
+            cmpi.w  #8,4(a7)
+            bne.s   .no
+            movem.l d0-d7/a0-a3,-(a7)
+            movea.l 6+48(a7),a1
+            bsr.s   aitext
+            movem.l (a7)+,d0-d7/a0-a3
+.no         rts
+
+aitext      lea     AIY*160(a1),a1
+            lea     FONT(a4),a3
+            move.w  #AIX,d2
+            moveq   #5,d7
+            lea     txtai(pc),a2
+            bra     puts
+
 ; pic4 : image « 3 voitures » en a0 (320x200, 4 plans). La rouge (lignes
 ; 126-167, blocs de 16 pixels 5 à 14) est déplacée de 5 blocs à gauche (sous
 ; la bleue) ; une copie recolorée est posée 5 blocs à droite (sous la
@@ -516,7 +547,7 @@ HUDX        equ     96
 HUDY        equ     194
 HUDST       equ     P4B+128         ; 2 x 20 octets : écran.l, témoin (8),
 HUDSZ       equ     20              ; chiffres affichés (8)
-HUDWIT      equ     (HUDY+1)*160+(HUDX+4)/16*8
+HUDWIT      equ     160+(HUDX+4)/16*8       ; relatif à la ligne HUDY
 SHOWN       equ     -$52            ; écran affiché (l'autre tampon)
 
 hud4        bsr     g4human
@@ -526,6 +557,7 @@ hud4        bsr     g4human
             jmp     (a0)
 .human      movem.l d2-d7/a2-a3,-(a7)
             movea.l SCREEN(a4),a1
+            lea     HUDY*160(a1),a1 ; a1 = ligne du texte
             lea     FONT(a4),a3
             ; chiffres à afficher (indices de la police) : clés, tour, score
             subq.l  #8,a7
@@ -581,7 +613,7 @@ hud4        bsr     g4human
 .p3         btst    #3,d3
             beq.s   .fill
             move.w  #$ffff,d5
-.fill       lea     193*160+HUDX/2(a1),a2
+.fill       lea     (193-HUDY)*160+HUDX/2(a1),a2
             moveq   #6,d1           ; 7 lignes
 .frow       movea.l a2,a0
             moveq   #10,d0          ; 11 blocs de 16 pixels
@@ -731,13 +763,13 @@ puts        moveq   #0,d0
 putdig      lsl.w   #3,d0
             lea     (a3,d0.w),a0
 ; putc : glyphe a0 (5 lignes, 5 pixels à gauche de l'octet) en x = d2,
-; ligne HUDY, couleur d7, sur l'écran a1. Avance x de 6.
+; couleur d7, sur la ligne d'écran a1 (5 lignes). Avance x de 6.
 putc        movem.l d2-d5/a2-a3,-(a7)
             movea.l a0,a3           ; glyphe
             move.w  d2,d3
             lsr.w   #4,d3
             lsl.w   #3,d3
-            lea     HUDY*160(a1),a2
+            movea.l a1,a2           ; ligne du texte
             adda.w  d3,a2
             andi.w  #15,d2
             moveq   #4,d5
@@ -769,15 +801,15 @@ putc        movem.l d2-d5/a2-a3,-(a7)
             addq.w  #6,d2
             rts
 
-; putcell : glyphe a0 dans une case de 6 pixels en x = d2, ligne HUDY,
-; écran a1 : pixels du glyphe en couleur d7.w, reste de la case en couleur
+; putcell : glyphe a0 dans une case de 6 pixels en x = d2, sur la ligne
+; d'écran a1 : pixels du glyphe en couleur d7.w, reste de la case en couleur
 ; (d7 >> 16) ; remplace donc l'ancien caractère. Avance x de 6.
 putcell     movem.l d2-d6/a2-a3,-(a7)
             movea.l a0,a3
             move.w  d2,d3
             lsr.w   #4,d3
             lsl.w   #3,d3
-            lea     HUDY*160(a1),a2
+            movea.l a1,a2           ; ligne du texte
             adda.w  d3,a2
             andi.w  #15,d2
             moveq   #4,d5
@@ -870,6 +902,8 @@ n7          dc.b    ' joypad b ',0
 ; textes de hud4, en indices de la petite police (A = 12)
 txtgreen    dc.b    18,29,16,16,25,38,14,12,29,-1   ; GREEN CAR
 txtlap      dc.b    23,12,27,38,-1                  ; LAP
+txtai       dc.b    12,20,38,34,26,29,22,38,13,36,38,14,23,12,32,15,16,-1
+                                                ; AI WORK BY CLAUDE
 gwrench     dc.b    %10100000                       ; clé à molette
             dc.b    %11100000                       ; (8 pixels de large)
             dc.b    %01111111

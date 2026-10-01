@@ -73,6 +73,9 @@ def p4_patches(B):
         # table de sauts, entrée $180 (F_0A31C, restaure le fond sous le
         # chiffre du drone à chaque image) : rien si la verte est humaine
         (0x0180, '4ef90000a31c', jmp_abs(E(14))),
+        # table de sauts, entrée $24c (F_0AFCE, images par blocs) : écran
+        # titre avec « AI WORK BY CLAUDE »
+        (0x024C, '4ef90000afce', jmp_abs(E(18))),
         # F_0E850 : les 6 grands titres -> titles, puis saut à la suite
         (0xE8A6, '3f3c00053f3c00203f3c', '4eb9%08x600000a0' % E(7)),
         # F_0975A : fin de partie si les 4 voitures sont des drones
