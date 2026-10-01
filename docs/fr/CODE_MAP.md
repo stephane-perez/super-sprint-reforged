@@ -108,7 +108,7 @@ Environ 45 boucles sont bornées à 3 (joueurs humains) dans une vingtaine de fo
 | `$6340` → `ext629c` | `move.w #0,d0 / bra` | Contrôles 4–7 : port parallèle (prises « joystick 3 » et « joystick 4 ») et joypads STE A/B, lus en superviseur (`Supexec`) |
 | table de sauts `$24` → `init` | `jmp F_0624A` | `ctl[3]` = 1 (« none ») au démarrage ; détection du joypad (cookie `_MCH` = STE, Mega STE ou Falcon) |
 | `$E484`, `$F552` | `cmpi.w #3` | `F_0E3CA`, `F_0F4E2` : 4 voitures |
-| `$EA10`, `$ED6E` → `xpos_i` ; `$EC04` → `xpos_k` | `lea XTAB(a4),a0 / adda.w d0,a0` | Position (x, y) du libellé de chaque voiture (table `labxy`), y corrigé sur la pile |
+| `$EA10`, `$ED6E` → `xpos_i` ; `$EC04` → `xpos_k` | `lea XTAB(a4),a0 / adda.w d0,a0` | Position (x, y) du libellé de chaque voiture (table `labxy` : 4 colonnes de 80 pixels), y corrigé sur la pile |
 | `$EA28`, `$EC1C`, `$ED86` → `names` | `lea -$21CA(a4),a0 / adda.w d0,a0` | Noms des contrôles 4–7 |
 | `$EA40`, `$ED9E`, `$ECBC`, `$ECCA` | `cmpi.w #3` | Options : affichage et contrôles en double sur 4 voitures |
 | `$EBA4` | `cmpi.w #5` | Touches F2 à **F5** |
@@ -119,8 +119,8 @@ Environ 45 boucles sont bornées à 3 (joueurs humains) dans une vingtaine de fo
 | DATA `+$23E` | « use function keys to select controls for cars » | chaîne vide |
 | DATA `+$26C` | « f2 - blue car   f3 - red car   f4 - yellow car » | « f2 blue  f3 red  f4 yellow  f5 green » |
 | table de sauts `$132` → `hud4` | `jmp F_0A2E4` | Voiture verte humaine : ligne du bas « GREEN CAR », clés, tour, score |
-| table de sauts `$18C` → `dec4` | `jmp F_0A546` | Image « 3 voitures » : la rouge passe sous la bleue, copie verte sous la jaune (recoloration par plans) ; palette P2 : couleurs 1-2 vertes, P2 dès la ligne 98 ; P0[4] vert |
-| `$E8A6` → `titles` | 6 appels de `F_0C4F8` | Titres des 4 voitures |
+| table de sauts `$18C` → `dec4` | `jmp F_0A546` | Image « 3 voitures » : la rouge passe sous la bleue, copie verte sous la jaune (recoloration par plans) ; palette P2 : couleurs 1-2 vertes ; P0[4] vert |
+| `$E8A6` → `titles` | 6 appels de `F_0C4F8` | Titres des 4 voitures en haut, sur 4 colonnes (bleue, rouge, jaune, verte), comme « prepare to race » |
 | `$97EC` → `alldrone` | `drone[0] & drone[1] & drone[2]` | Fin de partie : les 4 voitures |
 | 11 calculs `base + $6B*i` | | 4 colonnes de 80 pixels : `base - 11 + $50*i` |
 | `$DE0C`, `$EFB0`, `$E308` → `col4a/b/c` | appels de `F_0E78C`, `F_0F60C`, `F_0C224` | 4e colonne vide si la voiture 4 n'a pas de contrôle |

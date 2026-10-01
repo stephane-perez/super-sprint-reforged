@@ -54,7 +54,6 @@ F_0C4F8     equ     $c4f8           ; grand titre (écran, texte, couleur, x, y)
 PIC3CARS    equ     -$66            ; image compressée « 3 voitures » (options,
                                     ; prepare to race, initiales)
 PALS        equ     -$16de          ; palettes du raster de ces écrans
-COUNTS      equ     -$17da          ; durées des palettes (unités de 2 lignes)
 ; Le patcheur agrandit le BSS de BSSX octets : ils apparaissent sous le BSS
 ; d'origine, en P4B(a4). On y range les tables par voiture à 4 cases.
 BSSX        equ     256             ; utilisés : 80 + 48
@@ -262,8 +261,8 @@ xpos_i      lea     labxy(pc),a0
 ; ----------------------------------------------------------------------------
 ; titles : remplace, dans F_0E850 (écran des options), les 6 appels de
 ; F_0C4F8 qui écrivent « BLUE / CAR », « RED / CAR », « YELLOW / CAR ».
-; Nouvelle disposition : bleue en haut à gauche, jaune en haut à droite,
-; rouge et verte au milieu (au-dessus des voitures du bas, voir pic4).
+; Nouvelle disposition : 4 colonnes en haut (bleue, rouge, jaune, verte),
+; comme les écrans « prepare to race » et choix du circuit.
 ; a6 = cadre de F_0E850, écran en 8(a6).
 ; ----------------------------------------------------------------------------
 titles      move.l  a2,-(a7)        ; F_0C462 modifie d0-d7 : compteur
@@ -290,10 +289,9 @@ titles      move.l  a2,-(a7)        ; F_0C462 modifie d0-d7 : compteur
 ; dec4 : remplace F_0A546 (entrée $18c) : décompression d'une image
 ; (source 4(a7), destination 8(a7)). Pour l'image « 3 voitures », on la
 ; retouche (pic4) et on adapte le raster de ces écrans :
-; - palette P2 (à partir de la ligne 98 au lieu de 112) : couleurs 1 et 2
+; - palette P2 (voitures du bas, à partir de la ligne 112) : couleurs 1 et 2
 ;   (jaunes, inutilisées dans cette bande) -> verts ;
-; - durée de P1 : 30 -> 23 (x 2 lignes), pour que les titres « RED CAR » et
-;   « GREEN CAR » (lignes 100-111) aient le rouge et le vert de P2.
+; - palette P0 (titres du haut) : couleur 4 -> vert (4e colonne).
 ; ----------------------------------------------------------------------------
 dec4        move.l  4(a7),d0
             cmp.l   PIC3CARS(a4),d0
@@ -314,7 +312,6 @@ dec4        move.l  4(a7),d0
             move.w  #GREEN1,PALS+8(a4)      ; P0[4] : textes de la 4e colonne
             move.w  #GREEN1,PALS+$40+2(a4)
             move.w  #GREEN2,PALS+$40+4(a4)
-            move.w  #23,COUNTS+2(a4)
             rts
 
 ; pic4 : image « 3 voitures » en a0 (320x200, 4 plans). La rouge (lignes
@@ -620,20 +617,26 @@ postab      dc.w    $26,$26,$c5,$c6         ; -$2184 : x (initiales)
             dc.w    $3f,$84,$3f,$84         ; -$21AE : y
             dc.w    $26,$26,$c5,$c6         ; -$21B4 : x (options)
             dc.w    $49,$8e,$49,$8e         ; -$21BA : y
-; libellés des contrôles (x, y), voitures 0 à 3 (bleue, rouge, jaune, verte)
-labxy       dc.w    $32,$22, $32,$72, $d2,$22, $d2,$72
-; grands titres : texte (décalage depuis titab), couleur, x, y. Couleur =
-; indice de palette de la bande : P0 (haut) 1 = bleu, 3 = jaune ; P2 (à
-; partir de la ligne 98) 6 = rouge, 1 = vert.
-titab       dc.w    tblue-titab,1,36,5
-            dc.w    tyellow-titab,3,185,5
-            dc.w    tred-titab,6,42,100
-            dc.w    tgreen-titab,1,191,100
+; libellés des contrôles (x, y), voitures 0 à 3 (bleue, rouge, jaune, verte) :
+; 4 colonnes de 80 pixels comme « prepare to race » (centres 44, 124, 204,
+; 284), 10 caractères de 6 pixels
+labxy       dc.w    14,$22, 94,$22, 174,$22, 254,$22
+; grands titres (11 pixels par caractère) : texte (décalage depuis titab),
+; couleur (palette P0 : 1 bleu, 2 rouge, 3 jaune, 4 vert), x, y
+titab       dc.w    tblue-titab,1,22,5
+            dc.w    tcar-titab,1,28,$13
+            dc.w    tred-titab,2,108,5
+            dc.w    tcar-titab,2,108,$13
+            dc.w    tyellow-titab,3,171,5
+            dc.w    tcar-titab,3,188,$13
+            dc.w    tgreen-titab,4,257,5
+            dc.w    tcar-titab,4,268,$13
 titend
-tblue       dc.b    'blue car',0
-tyellow     dc.b    'yellow car',0
-tred        dc.b    'red car',0
-tgreen      dc.b    'green car',0
+tblue       dc.b    'blue',0
+tred        dc.b    'red',0
+tyellow     dc.b    'yellow',0
+tgreen      dc.b    'green',0
+tcar        dc.b    'car',0
             even
 reqctl      dc.w    0
 nameptr     dc.l    0

@@ -84,7 +84,7 @@ Vérifications faites (Hatari, EmuTOS) : ST + joystick parallèle, STE + joypad 
 Version 2 (vérifiée sous Hatari) :
 
 - ligne du bas « GREEN CAR », clés, tour, score quand la verte est humaine ;
-- écran des options : 4 voitures (la verte est une copie recolorée de la rouge), titres, aide sur 2 lignes ;
+- écran des options : 4 voitures (la verte est une copie recolorée de la rouge), titres et contrôles sur 4 colonnes en haut comme « prepare to race », aide sur 2 lignes ;
 - choix du circuit, « prepare to race », initiales : 4 colonnes de 80 pixels ; la verte peut rejoindre, continuer après une course ou saisir ses initiales ;
 - la partie continue tant qu'une des 4 voitures est humaine (la verte peut jouer seule) ;
 - « customize car » pour la verte, clés à molette de départ ;
