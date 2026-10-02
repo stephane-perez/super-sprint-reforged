@@ -724,27 +724,32 @@ vfree       cmpi.w  #3,d0
 
 ; eng4 : entrée $156, F_0814C(voiture, vitesse), appelée à chaque image pour
 ; chaque voiture humaine. À 4 humains, la verte partage la voie de la jaune
-; (SHAREV) : une image sur deux chacune (le YM ne mélange pas deux sons sur
-; une voie ; l'alternance à 25 Hz fait entendre les deux moteurs).
+; (SHAREV) : le YM ne mélange pas deux sons sur une voie. F_0814C monte le
+; volume de la voie (+8 par appel) vers une cible si la vitesse est > 20, et
+; le baisse (-8) sinon : en alternant simplement, une voiture arrêtée
+; faisait baisser le volume de l'autre. La voie va donc à la voiture qui
+; roule si une seule roule, et alterne une image sur deux (25 Hz chacune)
+; si les deux roulent ou si aucune ne roule.
 SHAREV      equ     2
 FRAMES      equ     -$1f88          ; compteur d'images (échanges d'écran)
+SPEEDS      equ     -$e92           ; vitesse de chaque voiture (mots)
 eng4        move.w  4(a7),d0
             cmpi.w  #3,d0
             beq.s   .green
             cmpi.w  #SHAREV,d0
             bne.s   .call
             moveq   #3,d0           ; la verte est-elle humaine sans voie
-            bsr.s   vfree           ; libre ?
+            bsr     vfree           ; libre ?
             bpl.s   .call
             bsr     g4human
             beq.s   .call
-            btst    #0,FRAMES+1(a4) ; images impaires : la verte
-            bne.s   .no
+            bsr     owner           ; à qui la voie partagée ?
+            bne.s   .no             ; à la verte
             bra.s   .call
-.green      bsr.s   vfree
+.green      bsr     vfree
             bpl.s   .set
-            btst    #0,FRAMES+1(a4)
-            beq.s   .no
+            bsr     owner
+            beq.s   .no             ; à la jaune
             moveq   #SHAREV,d0
 .set        move.w  d0,4(a7)
 .call       move.l  a5,a0
@@ -752,9 +757,25 @@ eng4        move.w  4(a7),d0
             jmp     (a0)
 .no         rts
 
+; owner : Z = 1 si la voie partagée va à la jaune cette image, 0 à la verte
+owner       move.l  d1,-(a7)
+            moveq   #20,d1
+            cmp.w   SPEEDS+2*SHAREV(a4),d1
+            slt     d0              ; d0 = $FF si la jaune roule
+            cmp.w   SPEEDS+6(a4),d1
+            slt     d1              ; d1 = $FF si la verte roule
+            cmp.b   d0,d1
+            beq.s   .alt            ; les deux ou aucune : alternance
+            tst.b   d1              ; la seule qui roule
+            bra.s   .end
+.alt        moveq   #1,d1
+            and.b   FRAMES+1(a4),d1 ; images impaires : la verte
+.end        movem.l (a7)+,d1        ; (ne change pas Z)
+            rts
+
 ; snd4 : entrée $126, F_085DC(voiture)
 snd4        move.w  4(a7),d0
-            bsr.s   vmap
+            bsr     vmap
             move.w  d0,4(a7)
             move.l  a5,a0
             adda.l  #F_085DC,a0
