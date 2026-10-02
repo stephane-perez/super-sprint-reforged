@@ -78,6 +78,10 @@ def p4_patches(B):
         (0x024C, '4ef90000afce', jmp_abs(E(18))),
         # F_0F6DA (« customize car ») : lecture du contrôle -> upin
         (0xFAB4, '4ead0096548f', '4eb9%08x' % E(19)),
+        # F_0DD20 : « customized car includes » de la rouge sous sa voiture
+        # déplacée à gauche (x 92 -> 12), et celui de la verte (cust4)
+        (0xDD90, '3f3c005c', '3f3c000c'),
+        (0xDDBC, '2f2e00084eba2270588f', '4eb9%08x4e714e71' % E(20)),
         # F_0E850 : les 6 grands titres -> titles, puis saut à la suite
         (0xE8A6, '3f3c00053f3c00203f3c', '4eb9%08x600000a0' % E(7)),
         # F_0975A : fin de partie si les 4 voitures sont des drones
@@ -175,7 +179,7 @@ def p4_patches(B):
     for k, (disp, sites) in enumerate(TABLES):
         for at in sites:
             P.append((at, lea_a4(disp), lea_a4(P4B + 8 * k)))
-    return P, [0x6342, 0xE8A8, 0x97EE, 0xE34A, 0xD674, 0xFAB6] + list(VMAP)  # nouvelles relocations
+    return P, [0x6342, 0xE8A8, 0x97EE, 0xE34A, 0xD674, 0xFAB6, 0xDDBE] + list(VMAP)  # nouvelles relocations
 
 def reframe(text, start, end, link, moves, count):
     """Agrandit le cadre de pile d'une fonction (link a6,#n) et déplace ses

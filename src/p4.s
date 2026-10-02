@@ -102,6 +102,7 @@ GREEN2      equ     $041            ; couleurs 1 et 2, libres dans cette bande)
             bra.w   snd4            ; +68 : entrée $126 (F_085DC)
             bra.w   title5          ; +72 : entrée $24C (F_0AFCE, images)
             bra.w   upin            ; +76 : lecture du contrôle, « customize car »
+            bra.w   cust4           ; +80 : améliorations de la verte (F_0DD20)
 
 ; ----------------------------------------------------------------------------
 ; init : remplace l'appel de F_0624A au démarrage (jsr $24(a5)).
@@ -707,6 +708,25 @@ upin        move.w  4(a7),-(a7)
 .out        movea.l (a7)+,a0
             addq.l  #2,a7
             jmp     (a0)
+
+; cust4 : « prepare to race » (F_0DD20, $DDBC) : après les 3 appels de
+; F_0E492(écran, voiture, x, y) (« customized car includes ... » sous
+; chaque voiture), celui de la verte, sous sa voiture en bas à droite ; puis
+; ce que faisait l'original à cet endroit : F_10032(écran).
+cust4       move.w  #173,-(a7)
+            move.w  #172,-(a7)
+            move.w  #3,-(a7)
+            move.l  8(a6),-(a7)
+            move.l  a5,a0
+            adda.l  #$e492,a0
+            jsr     (a0)
+            lea     10(a7),a7
+            move.l  8(a6),-(a7)
+            move.l  a5,a0
+            adda.l  #$10032,a0
+            jsr     (a0)
+            addq.l  #4,a7
+            rts
 
 ; cheat : touche « * » du pavé numérique (code $66) pendant la course :
 ; 5 clés à molette de plus pour chaque voiture (pour essayer l'écran
