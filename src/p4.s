@@ -64,7 +64,7 @@ TSPAL       equ     -$179e          ; palettes du raster du choix du circuit ;
                                     ; sert qu'à la 4e colonne
 ; Le patcheur agrandit le BSS de BSSX octets : ils apparaissent sous le BSS
 ; d'origine, en P4B(a4). On y range les tables par voiture à 4 cases.
-BSSX        equ     256             ; utilisés : 80 + 48 + 40
+BSSX        equ     256             ; utilisés : 80 + 48 + 40 + 32
 P4B         equ     -$2b74-BSSX
 NPOS        equ     10              ; tables de positions (x ou y), 4 mots
 DRONES      equ     -$f4a           ; drone[4]
@@ -72,6 +72,9 @@ PODCOL      equ     -$167e          ; podium : 3 couleurs par entrée, 7 entrée
                                     ; (0-2 humains, 3 verte drone, 4-6 drones)
 PODCOL8     equ     P4B+NPOS*8      ; notre copie à 8 entrées (3 = verte
                                     ; humaine, 7 = verte drone)
+UPCOL       equ     P4B+168         ; « customize car » (F_0F6DA) : tables
+UPWID       equ     UPCOL+8         ; d'origine à 3 entrées (-$2240 couleur,
+UPNAME      equ     UPCOL+16        ; -$2246 largeur, -$2252 nom), ici à 4
 GREEN1      equ     $070            ; verts de la 4e voiture (palette P2,
 GREEN2      equ     $041            ; couleurs 1 et 2, libres dans cette bande)
 
@@ -104,6 +107,19 @@ GREEN2      equ     $041            ; couleurs 1 et 2, libres dans cette bande)
 ; ports joypad (cookie _MCH = STE ou Falcon), puis continue vers F_0624A.
 ; ----------------------------------------------------------------------------
 init        move.w  #CTL3_DEF,CTL+6(a4)
+            lea     UPCOL(a4),a0    ; écran « customize car » : couleur,
+            move.l  #$02370701,(a0)+        ; largeur et nom du titre pour
+            move.l  #$07730070,(a0)+        ; 4 voitures
+            move.l  #$0058004d,(a0)+
+            move.l  #$006e0063,(a0)+        ; « green car » : 9 x 11 pixels
+            lea     $414(a4),a1             ; noms d'origine (DATA)
+            move.l  a1,(a0)+
+            lea     $41e(a4),a1
+            move.l  a1,(a0)+
+            lea     $426(a4),a1
+            move.l  a1,(a0)+
+            lea     txtgcar(pc),a1
+            move.l  a1,(a0)+
             lea     HUDST(a4),a0    ; ligne du bas de la verte : rien dessiné
             moveq   #2*HUDSZ/4-1,d0
 .hst        clr.l   (a0)+
@@ -945,6 +961,7 @@ n7          dc.b    ' joypad b ',0
 ; textes de hud4, en indices de la petite police (A = 12)
 txtgreen    dc.b    18,29,16,16,25,38,14,12,29,-1   ; GREEN CAR
 txtlap      dc.b    23,12,27,38,-1                  ; LAP
+txtgcar     dc.b    'green car',0
 txtai       dc.b    12,20,38,34,26,29,22,38,13,36,38,14,23,12,32,15,16,-1
                                                 ; AI WORK BY CLAUDE
 gwrench     dc.b    %10100000                       ; clé à molette

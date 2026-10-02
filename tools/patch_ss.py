@@ -152,6 +152,12 @@ def p4_patches(B):
         (0x0156, '4ef90000814c', jmp_abs(E(16))),
         (0x0126, '4ef9000085dc', jmp_abs(E(17))),
     ]
+    # écran « customize car » (F_0F6DA) : tables à 4 entrées (P4B+168)
+    UPCOL = P4B + 168
+    for at, disp, new in ((0xF922, -0x2246, UPCOL + 8), (0xF93C, -0x2252, UPCOL + 16),
+                          (0xFA74, -0x2240, UPCOL), (0xFB1E, -0x2240, UPCOL),
+                          (0xFC22, -0x2240, UPCOL)):
+        P.append((at, '41ec%04x' % (disp & 0xFFFF), '41ec%04x' % (new & 0xFFFF)))
     # « voiture % 3 » avant les effets sonores -> jsr vmap (la verte prend
     # la voie d'une voiture pilotée par l'ordinateur)
     VMAP = (0x316, 0x33A, 0x916, 0xB3C, 0x120C, 0x1366, 0x3FB0, 0x42AC, 0x4740)
