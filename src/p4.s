@@ -64,7 +64,7 @@ TSPAL       equ     -$179e          ; palettes du raster du choix du circuit ;
                                     ; sert qu'à la 4e colonne
 ; Le patcheur agrandit le BSS de BSSX octets : ils apparaissent sous le BSS
 ; d'origine, en P4B(a4). On y range les tables par voiture à 4 cases.
-BSSX        equ     256             ; utilisés : 80 + 48 + 40 + 32
+BSSX        equ     256             ; utilisés : 80 + 48 + 40 + 32 + 1
 P4B         equ     -$2b74-BSSX
 NPOS        equ     10              ; tables de positions (x ou y), 4 mots
 DRONES      equ     -$f4a           ; drone[4]
@@ -75,6 +75,7 @@ PODCOL8     equ     P4B+NPOS*8      ; notre copie à 8 entrées (3 = verte
 UPCOL       equ     P4B+168         ; « customize car » (F_0F6DA) : tables
 UPWID       equ     UPCOL+8         ; d'origine à 3 entrées (-$2240 couleur,
 UPNAME      equ     UPCOL+16        ; -$2246 largeur, -$2252 nom), ici à 4
+UPREL       equ     P4B+200         ; tir relâché depuis l'ouverture (octet)
 GREEN1      equ     $070            ; verts de la 4e voiture (palette P2,
 GREEN2      equ     $041            ; couleurs 1 et 2, libres dans cette bande)
 
@@ -100,6 +101,7 @@ GREEN2      equ     $041            ; couleurs 1 et 2, libres dans cette bande)
             bra.w   eng4            ; +64 : entrée $156 (F_0814C, moteur)
             bra.w   snd4            ; +68 : entrée $126 (F_085DC)
             bra.w   title5          ; +72 : entrée $24C (F_0AFCE, images)
+            bra.w   upin            ; +76 : lecture du contrôle, « customize car »
 
 ; ----------------------------------------------------------------------------
 ; init : remplace l'appel de F_0624A au démarrage (jsr $24(a5)).
@@ -566,7 +568,8 @@ HUDSZ       equ     20              ; chiffres affichés (8)
 HUDWIT      equ     160+(HUDX+4)/16*8       ; relatif à la ligne HUDY
 SHOWN       equ     -$52            ; écran affiché (l'autre tampon)
 
-hud4        bsr     g4human
+hud4        bsr     cheat
+            bsr     g4human
             bne.s   .human
             move.l  a5,a0
             adda.l  #F_0A2E4,a0
@@ -679,6 +682,57 @@ hud4        bsr     g4human
 ; x des 8 chiffres : clés, tour, score (6)
 digx        dc.w    HUDX+80,HUDX+114
             dc.w    HUDX+134,HUDX+140,HUDX+146,HUDX+152,HUDX+158,HUDX+164
+
+; upin : dans F_0F6DA (« customize car »), remplace « jsr F_0629C / addq.l
+; #2,a7 » ($FAB4) : lecture du contrôle de la voiture $10(a6). Pour la
+; verte, le tir n'est pris en compte qu'après avoir été relâché une fois
+; depuis l'ouverture de l'écran (premier passage : décompte -6(a6) = $1DA),
+; sinon l'accélérateur encore enfoncé à la fin de la course valide tout de
+; suite le choix.
+upin        move.w  4(a7),-(a7)
+            jsr     $96(a5)
+            addq.l  #2,a7
+            cmpi.w  #3,$10(a6)
+            bne.s   .out
+            cmpi.w  #$1da,-6(a6)
+            bne.s   .chk
+            sf      UPREL(a4)
+.chk        tst.b   d0
+            bmi.s   .fire
+            st      UPREL(a4)
+            bra.s   .out
+.fire       tst.b   UPREL(a4)
+            bne.s   .out
+            andi.w  #$7f,d0
+.out        movea.l (a7)+,a0
+            addq.l  #2,a7
+            jmp     (a0)
+
+; cheat : touche « * » du pavé numérique (code $66) pendant la course :
+; 5 clés à molette de plus pour chaque voiture (pour essayer l'écran
+; « customize car » dès le premier circuit). Le gestionnaire IKBD met la
+; case de la touche à 3 à l'appui et efface le bit 0 au relâchement : on
+; efface le bit 1 pour ne compter qu'un appui.
+KEYS        equ     -$12c2
+KEYCHEAT    equ     $66
+WRENCHES    equ     -$f72           ; clés de chaque voiture (mots)
+cheat       bclr    #1,KEYS+KEYCHEAT(a4)
+            beq.s   .no
+            movem.l d0-d7/a0-a3,-(a7)  ; F_0A236 utilise d0-d4, d7, a0-a3
+            lea     WRENCHES(a4),a0
+            moveq   #3,d0
+.add        addq.w  #5,(a0)+
+            dbra    d0,.add
+            moveq   #2,d6           ; chiffres des clés dans l'en-tête
+.hdr        move.w  d6,-(a7)        ; (voitures 0 à 2, deux écrans)
+            move.l  SCREEN(a4),-(a7)
+            jsr     $e4(a5)
+            move.l  SHOWN(a4),(a7)
+            jsr     $e4(a5)
+            addq.l  #6,a7
+            dbra    d6,.hdr
+            movem.l (a7)+,d0-d7/a0-a3
+.no         rts
 
 clamp9      cmpi.w  #9,d0
             bls.s   .ok
