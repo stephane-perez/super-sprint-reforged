@@ -49,7 +49,7 @@ game: $(P4DEP) tools/patch_ss.py
 
 check:
 	@$(PY) -c "import hashlib,sys; \
-exp={'1':'02fe6f157d42c4af5897d76908f4e5b8','0':'c98082d03fdc9f2ba12e6321a8e83188'}['$(P4)']; \
+exp={'1':'f5406e04fbc75e975f1d597aa629866a','0':'c98082d03fdc9f2ba12e6321a8e83188'}['$(P4)']; \
 h=hashlib.md5(open('$(B)/SSPRINT/SSPRINT.PRG','rb').read()).hexdigest(); \
 print('OK' if h==exp else 'MISMATCH: '+h); sys.exit(h!=exp)"
 

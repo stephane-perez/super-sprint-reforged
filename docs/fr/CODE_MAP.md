@@ -148,8 +148,11 @@ Environ 45 boucles sont bornées à 3 (joueurs humains) dans une vingtaine de fo
 | Point d'entrée | Original | Remplacement |
 |---|---|---|
 | table de sauts `$120` → `hlab` | `F_0A1C6` étiquettes (3 images de 112 pixels) | 4 colonnes de 80 pixels : nom (BLUE, RED, YELLOW, GREEN dessiné à la main, ou DRONE), clé, « LAP » ; pixel par pixel, à la préparation de l'écran |
-| `$E4` → `hwr`, `$210` → `hsc`, `$204` → `hlap` (+ appels directs `$F752`, `$FCD8`, `$10210`, `$10CAA`, `$F760`, `$1021E`) | `F_0A236` clés, `F_0B5E6` score, `F_0BB56` tour | `hupd` : cache par écran des valeurs affichées ; en course (appels depuis `F_098BA`), un seul élément par image (un chiffre, le tour, les clés) ; ailleurs tout de suite. Les copies `-$1306` (score) et `-$12D6` (tour, utilisée par la logique de course) sont conservées |
-| `$994C` → `hblink` | `F_0994C` efface la colonne du premier (clignotement) | efface la colonne dans la disposition à 4 colonnes ; elle est remise depuis une copie quand le jeu la redemande |
+| `$E4` → `hwr`, `$210` → `hsc`, `$204` → `hlap` (+ appels directs `$F752`, `$FCD8`, `$10210`, `$10CAA`, `$F760`, `$1021E`) | `F_0A236` clés, `F_0B5E6` score, `F_0BB56` tour | `hupd` : cache par écran des valeurs affichées ; en course (appels depuis `F_098BA`), un seul élément par image (un chiffre, le tour, les clés) ; ailleurs tout de suite. Les copies `-$1306` (score) et `-$12D6` (tour, utilisée par la logique de course) sont conservées. Appels du code de course : dessin aussi dans le fond `BACKGND` (`-$56`), d'où les voitures restaurent l'écran |
+| `$994C` → `hblink` | `F_0994C` efface la colonne du premier (clignotement, voiture choisie par `F_09830`) | efface la colonne dans la disposition à 4 colonnes ; elle est remise depuis une copie (faite dès que la colonne est à jour) quand le jeu redemande cette voiture |
+| `$1B98`, `$2800` → `rpal` ; `rtb` | palette unique de la course (`-$17BE`) | bande de raster lignes 0-17 avec la couleur 5 en vert vif (`$070`) ; Timer B du jeu remplacé en course par `rtb` (9 interruptions par image au lieu de ~100) |
+| `hud4` | « DRONE LAP n » en bas | verte humaine : « DRONE LAP » effacé une fois (2 écrans, fond, image maître) |
+| `$E4F2` | fond `$D` sous « customized car includes » pour la voiture 1 | pour les voitures 1 et 3 (en bas) |
 | `$FAB4` → `upin` | lecture du contrôle dans « customize car » | pour la verte, le tir ne compte qu'après avoir été relâché |
 | `$DDBC` → `cust4`, `$DD90` | « customized car includes » de 3 voitures | rouge sous sa voiture déplacée (x 12), verte en (172, 173) |
 | `$F922`, `$F93C`, `$FA74`, `$FB1E`, `$FC22` | tables à 3 entrées de « customize car » (nom, largeur, couleur) | tables à 4 entrées dans le BSS ajouté |

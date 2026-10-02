@@ -86,9 +86,15 @@ def p4_patches(B):
         (0x0204, '4ef90000bb56', jmp_abs(E(24))),
         # F_0994C (clignotement de la colonne du premier) -> hblink
         (0x994C, '4e560000302e0008', jmp_abs(E(25)) + '4e71'),
+        # palette de la course : bande de l'en-tête (rpal)
+        (0x1B98, '42a7486ce842', '4eb9%08x' % E(26)),
+        (0x2800, '42a7486ce842', '4eb9%08x' % E(26)),
         # F_0DD20 : « customized car includes » de la rouge sous sa voiture
         # déplacée à gauche (x 92 -> 12), et celui de la verte (cust4)
         (0xDD90, '3f3c005c', '3f3c000c'),
+        # F_0E492 : fond de couleur $D sous le texte pour les voitures du bas
+        # (rouge 1 et verte 3 : voiture impaire) au lieu de la seule rouge
+        (0xE4F2, '0c6e0001000c66000008', '082e0000000d67000008'),
         (0xDDBC, '2f2e00084eba2270588f', '4eb9%08x4e714e71' % E(20)),
         # F_0E850 : les 6 grands titres -> titles, puis saut à la suite
         (0xE8A6, '3f3c00053f3c00203f3c', '4eb9%08x600000a0' % E(7)),
@@ -195,7 +201,7 @@ def p4_patches(B):
     for k, (disp, sites) in enumerate(TABLES):
         for at in sites:
             P.append((at, lea_a4(disp), lea_a4(P4B + 8 * k)))
-    return P, [0x6342, 0xE8A8, 0x97EE, 0xE34A, 0xD674, 0xFAB6, 0xDDBE, 0x994E] + list(VMAP)  # nouvelles relocations
+    return P, [0x6342, 0xE8A8, 0x97EE, 0xE34A, 0xD674, 0xFAB6, 0xDDBE, 0x994E, 0x1B9A, 0x2802] + list(VMAP)  # nouvelles relocations
 
 def reframe(text, start, end, link, moves, count):
     """Agrandit le cadre de pile d'une fonction (link a6,#n) et déplace ses

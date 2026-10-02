@@ -76,6 +76,16 @@ UPCOL       equ     P4B+168         ; « customize car » (F_0F6DA) : tables
 UPWID       equ     UPCOL+8         ; d'origine à 3 entrées (-$2240 couleur,
 UPNAME      equ     UPCOL+16        ; -$2246 largeur, -$2252 nom), ici à 4
 UPREL       equ     P4B+200         ; tir relâché depuis l'ouverture (octet)
+HUDCLR      equ     P4B+201         ; bande du bas à effacer (octet)
+HRACE       equ     P4B+202         ; appel depuis la course (octet)
+RTBON       equ     P4B+203         ; notre Timer B installé (octet)
+HSTEP1      equ     P4B+204         ; un seul élément par appel (octet)
+RCNT        equ     P4B+360         ; raster de la course : compteurs,
+RPALS       equ     P4B+368         ; 2 palettes (en-tête, reste)
+RACEPAL     equ     -$17be          ; palette de la course
+CUSTPAL     equ     -$171e          ; palettes de « customize car »
+HGREEN      equ     $070            ; vert vif de la colonne verte
+MASTER      equ     -$5a            ; image maître de la course
 GREEN1      equ     $070            ; verts de la 4e voiture (palette P2,
 GREEN2      equ     $041            ; couleurs 1 et 2, libres dans cette bande)
 
@@ -108,6 +118,7 @@ GREEN2      equ     $041            ; couleurs 1 et 2, libres dans cette bande)
             bra.w   hsc             ; +92 : entrée $210 (F_0B5E6, score)
             bra.w   hlap            ; +96 : entrée $204 (F_0BB56, tour)
             bra.w   hblink          ; +100 : F_0994C (clignotement du premier)
+            bra.w   rpal            ; +104 : palette de la course ($1B98, $2800)
 
 ; ----------------------------------------------------------------------------
 ; init : remplace l'appel de F_0624A au démarrage (jsr $24(a5)).
@@ -115,6 +126,9 @@ GREEN2      equ     $041            ; couleurs 1 et 2, libres dans cette bande)
 ; ports joypad (cookie _MCH = STE ou Falcon), puis continue vers F_0624A.
 ; ----------------------------------------------------------------------------
 init        move.w  #CTL3_DEF,CTL+6(a4)
+            move.w  #HGREEN,CUSTPAL+2*5(a4) ; « customize car » : en-tête,
+                                    ; colonne verte en vert vif (couleur 5,
+                                    ; inutilisée ailleurs dans cette bande)
             lea     UPCOL(a4),a0    ; écran « customize car » : couleur,
             move.l  #$02370701,(a0)+        ; largeur et nom du titre pour
             move.l  #$07730070,(a0)+        ; 4 voitures
@@ -580,51 +594,14 @@ hud4        bsr     cheat
             move.l  a5,a0
             adda.l  #F_0A2E4,a0
             jmp     (a0)
-.human      movem.l d2-d7/a2-a3,-(a7)
-            movea.l SCREEN(a4),a1
-            lea     HUDY*160(a1),a1 ; a1 = ligne du texte
-            lea     FONT(a4),a3
-            ; chiffres à afficher (indices de la police) : clés, tour, score
-            subq.l  #8,a7
-            movea.l a7,a0
-            move.w  WRENCH3(a4),d0
-            bsr     clamp9
-            move.w  LAPS3(a4),d0
-            bsr     clamp9
-            lea     SCORE3(a4),a2
-            moveq   #5,d1
-.cs         move.b  (a2)+,d0
-            bpl.s   .cs1
-            moveq   #38,d0          ; vide : espace
-.cs1        move.b  d0,(a0)+
-            dbra    d1,.cs
-            ; entrée de cet écran
-            lea     HUDST(a4),a2
-            cmpa.l  (a2),a1
-            beq.s   .known
-            lea     HUDSZ(a2),a2
-            cmpa.l  (a2),a1
-            beq.s   .known
-            lea     HUDST(a4),a2    ; nouvel écran : on remplace l'entrée
-            move.l  SHOWN(a4),d0    ; qui n'est pas celle de l'écran affiché
-            addi.l  #HUDY*160,d0    ; (les entrées gardent la ligne HUDY)
-            cmp.l   (a2),d0
-            bne.s   .full
-            lea     HUDSZ(a2),a2
-            bra.s   .full
-.known      move.l  HUDWIT(a1),d0
-            cmp.l   4(a2),d0
-            bne.s   .full
-            move.l  HUDWIT+4(a1),d0
-            cmp.l   8(a2),d0
-            beq.w   .digits
-.full       move.l  a1,(a2)
-            moveq   #-1,d0          ; aucun chiffre affiché
-            move.l  d0,12(a2)
-            move.l  d0,16(a2)
-            move.l  a2,d6
+.human      tst.b   RTBON(a4)       ; raster de l'en-tête : notre Timer B
+            bne.s   .rtbok
+            bsr     rtbinst
+.rtbok      tst.b   HUDCLR(a4)      ; la verte est dans l'en-tête : on
+            beq.s   .no             ; efface seulement « DRONE LAP » de la
+            subq.b  #1,HUDCLR(a4)   ; bande du bas (2 écrans, fond, image
+            movem.l d2-d5/a2,-(a7)  ; maître), en début de course
             bsr     bgcol
-            ; mots des 4 plans pour la couleur de fond d3
             moveq   #0,d4
             moveq   #0,d5
             btst    #0,d3
@@ -637,9 +614,17 @@ hud4        bsr     cheat
             beq.s   .p3
             move.l  #$ffff0000,d5
 .p3         btst    #3,d3
-            beq.s   .fill
+            beq.s   .p4
             move.w  #$ffff,d5
-.fill       lea     (193-HUDY)*160+HUDX/2(a1),a2
+.p4         movea.l SCREEN(a4),a1
+            bsr.s   .fill
+            movea.l BACKGND(a4),a1
+            bsr.s   .fill
+            movea.l MASTER(a4),a1
+            bsr.s   .fill
+            movem.l (a7)+,d2-d5/a2
+.no         rts
+.fill       lea     193*160+HUDX/2(a1),a2
             moveq   #6,d1           ; 7 lignes
 .frow       movea.l a2,a0
             moveq   #10,d0          ; 11 blocs de 16 pixels
@@ -648,46 +633,7 @@ hud4        bsr     cheat
             dbra    d0,.fblk
             lea     160(a2),a2
             dbra    d1,.frow
-            ; textes fixes
-            move.w  #HUDX+4,d2
-            moveq   #15,d7          ; blanc
-            lea     txtgreen(pc),a2
-            bsr     puts
-            moveq   #0,d7           ; noir
-            move.w  #HUDX+70,d2
-            lea     gwrench(pc),a0
-            bsr     putc
-            move.w  #HUDX+90,d2
-            lea     txtlap(pc),a2
-            bsr     puts
-            movea.l d6,a2
-            move.l  HUDWIT(a1),4(a2)        ; témoin
-            move.l  HUDWIT+4(a1),8(a2)
-.digits     bsr     bgcol
-            move.w  d3,d7           ; d7 = fond << 16 | encre (noir)
-            swap    d7
-            clr.w   d7
-            moveq   #0,d6
-.dl         move.b  (a7,d6.w),d0
-            cmp.b   12(a2,d6.w),d0
-            beq.s   .dn
-            move.b  d0,12(a2,d6.w)
-            ext.w   d0
-            move.w  d6,d1
-            add.w   d1,d1
-            move.w  digx(pc,d1.w),d2
-            lsl.w   #3,d0
-            lea     (a3,d0.w),a0
-            bsr     putcell
-.dn         addq.w  #1,d6
-            cmpi.w  #8,d6
-            bne.s   .dl
-            addq.l  #8,a7
-            movem.l (a7)+,d2-d7/a2-a3
             rts
-; x des 8 chiffres : clés, tour, score (6)
-digx        dc.w    HUDX+80,HUDX+114
-            dc.w    HUDX+134,HUDX+140,HUDX+146,HUDX+152,HUDX+158,HUDX+164
 
 ; upin : dans F_0F6DA (« customize car »), remplace « jsr F_0629C / addq.l
 ; #2,a7 » ($FAB4) : lecture du contrôle de la voiture $10(a6). Pour la
@@ -758,12 +704,6 @@ cheat       bclr    #1,KEYS+KEYCHEAT(a4)
             dbra    d6,.hdr
             movem.l (a7)+,d0-d7/a0-a3
 .no         rts
-
-clamp9      cmpi.w  #9,d0
-            bls.s   .ok
-            moveq   #9,d0
-.ok         move.b  d0,(a0)+
-            rts
 
 ; g4human : Z = 0 si la voiture verte est pilotée par un humain
 g4human     tst.w   DRONE3(a4)
@@ -1059,6 +999,7 @@ hlab        bsr     g4human
             clr.l   (a0)
             clr.l   HDRSZ(a0)
             clr.l   HLASTS(a4)
+            move.b  #2,HUDCLR(a4)   ; bande du bas à effacer (course)
             movem.l (a7)+,d0-d7/a0-a3
 .no         rts
 
@@ -1119,6 +1060,18 @@ hupd        movem.l d0-d7/a0-a3,-(a7)
             movea.l 4+48(a7),a1
             move.l  a1,HLASTS(a4)   ; (voir hlap)
             move.w  FRAMES(a4),HLASTF(a4)
+            ; appel depuis le code de la course (avant $A000 : aussi dans le
+            ; fond BACKGND) ; depuis F_098BA (chaque image) : un élément
+            move.l  48(a7),d0
+            sub.l   a5,d0
+            cmpi.l  #$a000,d0
+            scs     HRACE(a4)
+            cmpi.l  #$9922,d0
+            seq     HSTEP1(a4)
+            beq.s   .race
+            cmpi.l  #$9930,d0
+            seq     HSTEP1(a4)
+.race
             ; entrée de cet écran
             lea     HDR(a4),a2
             cmpa.l  (a2),a1
@@ -1154,8 +1107,30 @@ hupd        movem.l d0-d7/a0-a3,-(a7)
             beq.s   .steps
             btst    d7,HVALID(a2)
             bne.s   .copy
-            bsr     hinvcol
-            bra.s   .steps
+            bsr     hinvcol         ; pas de copie : toute la colonne,
+            move.w  d7,d0           ; tout de suite (sinon le clignotement
+            lsl.w   #3,d0           ; suivant arriverait avant la fin)
+            lea     12(a2,d0.w),a3
+.fc         lea     -8(a7),a7
+            movea.l a7,a0
+            bsr     hvals
+            movea.l a7,a0
+            movea.l a3,a1
+            moveq   #7,d1
+.fcc        cmpm.b  (a0)+,(a1)+
+            dbne    d1,.fcc
+            beq.s   .fce
+            movea.l (a2),a1
+            move.l  a2,-(a7)
+            lea     4(a7),a2
+            bsr     hstep
+            movea.l (a7)+,a2
+            lea     8(a7),a7
+            bra.s   .fc
+.fce        lea     8(a7),a7
+            bsr     hwit
+            bset    d7,HNSAVE(a2)   ; copie à la prochaine occasion
+            bra     .steps
 .copy       bsr     hsaveptr
             bsr     hcolptr
             moveq   #10,d1
@@ -1188,13 +1163,20 @@ hupd        movem.l d0-d7/a0-a3,-(a7)
             lea     4(a7),a2
             bsr     hstep
             movea.l (a7)+,a2
-            bset    d7,HNSAVE(a2)
             bsr     hwit
+            movea.l a7,a0           ; colonne à jour ?
+            movea.l a3,a1
+            moveq   #7,d1
+.cmp2       cmpm.b  (a0)+,(a1)+
+            dbne    d1,.cmp2
             lea     8(a7),a7
+            beq.s   .save
+            bset    d7,HNSAVE(a2)
             bra.s   .more
 .clean      lea     8(a7),a7
             bclr    d7,HNSAVE(a2)   ; colonne à jour depuis peu : copie
             beq.s   .next
+.save       bclr    d7,HNSAVE(a2)
             bsr     hsaveptr
             bsr     hcolptr
             moveq   #10,d1
@@ -1208,12 +1190,8 @@ hupd        movem.l d0-d7/a0-a3,-(a7)
             bset    d7,HVALID(a2)
 .more       ; en course (appel depuis F_098BA, chaque image) : un élément
             ; par appel ; ailleurs (podium, customize car) : tout de suite
-            move.l  48(a7),d0
-            sub.l   a5,d0
-            cmpi.l  #$9922,d0
-            beq.s   .done
-            cmpi.l  #$9930,d0
-            beq.s   .done
+            tst.b   HSTEP1(a4)
+            bne.s   .done
             bra     .steps
 .next       addq.l  #8,a3
             addq.w  #1,d7
@@ -1298,6 +1276,71 @@ hsaveptr    lea     HSAVE(a4),a0
             adda.w  d0,a0
             rts
 
+; rpal : remplace « clr.l -(a7) / pea RACEPAL(a4) » avant F_0A3DE(image,
+; palette, compteurs) au début d'une course ($1B98, $2800) : la course a une
+; seule palette, dont les seuls verts sont $040 (couleur 5) et l'herbe
+; ($153, le fond de l'en-tête). Si la verte est humaine, on y ajoute une
+; bande de raster (Timer B, déjà utilisé par les menus) : lignes 0-17
+; (l'en-tête), même palette mais couleur 5 = vert vif ; puis la palette
+; normale. Compteurs en paires de lignes.
+rpal        movea.l (a7)+,a0        ; retour
+            bsr     g4human
+            beq.s   .orig
+            lea     RACEPAL(a4),a1
+            lea     RPALS(a4),a2
+            moveq   #7,d0
+.cp         move.l  (a1)+,(a2)+     ; bande de l'en-tête
+            dbra    d0,.cp
+            lea     RACEPAL(a4),a1  ; 2e bande : palette d'origine
+            lea     RPALS+32(a4),a2
+            moveq   #7,d0
+.cp2        move.l  (a1)+,(a2)+
+            dbra    d0,.cp2
+            move.w  #HGREEN,RPALS+2*5(a4)
+            sf      RTBON(a4)       ; Timer B à remplacer (hud4)
+            move.w  #9,RCNT(a4)     ; 18 lignes
+            move.w  #255,RCNT+2(a4)
+            pea     RCNT(a4)
+            pea     RPALS(a4)
+            jmp     (a0)
+.orig       clr.l   -(a7)
+            pea     RACEPAL(a4)
+            jmp     (a0)
+
+; rtbinst : en course, remplace le gestionnaire Timer B du raster du jeu
+; (une interruption toutes les 2 lignes pendant tout l'écran, ~100 par
+; image) par rtb : à la 9e interruption (ligne 18, fin de l'en-tête) on
+; remet la couleur 5 de la course et on arrête le Timer B jusqu'à la VBL
+; suivante (qui le relance, avec la palette de l'en-tête). Superviseur.
+rtbinst     movem.l d0-d2/a0-a2,-(a7)
+            st      RTBON(a4)
+            lea     rtbcnt(pc),a0
+            move.l  a5,d0
+            addi.l  #$578c,d0       ; compteur du raster du jeu (remis à 0
+            move.l  d0,(a0)+        ; par sa VBL)
+            move.w  RACEPAL+2*5(a4),(a0)
+            pea     .sup(pc)
+            move.w  #38,-(a7)       ; Supexec
+            trap    #14
+            addq.l  #6,a7
+            movem.l (a7)+,d0-d2/a0-a2
+            rts
+.sup        lea     rtb(pc),a0
+            move.l  a0,$120.w
+            rts
+rtbcnt      dc.l    0               ; adresse du compteur
+rtbc5       dc.w    0               ; couleur 5 de la course
+rtb         move.l  a0,-(a7)
+            movea.l rtbcnt(pc),a0
+            addq.w  #1,(a0)
+            cmpi.w  #9,(a0)
+            bne.s   .x
+            move.w  rtbc5(pc),$ffff824a.w
+            clr.b   $fffffa1b.w     ; Timer B arrêté
+.x          movea.l (a7)+,a0
+            bclr    #0,$fffffa0f.w
+            rte
+
 ; hvals : 8 octets en a0 pour la voiture d7 : clés (0-9, -1 si drone), tour
 ; (0-9), score (6 chiffres, négatif = vide)
 hvals       move.w  d7,d0
@@ -1338,21 +1381,8 @@ hstep       movem.l d0-d7/a0-a3,-(a7)
             move.b  (a0,d7.w),d4    ; couleur
             cmpi.b  #-2,1(a3)
             bne.s   .digits
-            move.l  a1,-(a7)        ; fond des lignes 7-17 (5 blocs)
-            movea.l HBG(a4),a0
-            move.w  d7,d0
-            mulu    #40,d0
-            adda.w  d0,a0
-            lea     7*160(a1),a1
-            adda.w  d0,a1
-            moveq   #10,d1
-.bg         moveq   #9,d2
-.bgw        move.l  (a0)+,(a1)+
-            dbra    d2,.bgw
-            lea     160-40(a0),a0
-            lea     160-40(a1),a1
-            dbra    d1,.bg
-            movea.l (a7)+,a1
+            lea     .rest(pc),a0    ; fond des lignes 7-17 (5 blocs)
+            bsr     .both
             st      1(a3)           ; tour : rien d'affiché
             bra     .end
 .digits     moveq   #0,d5           ; score : chiffres 0-5
@@ -1371,7 +1401,8 @@ hstep       movem.l d0-d7/a0-a3,-(a7)
             blt.s   .s3
             addq.w  #4,d0
 .s3         add.w   d6,d0
-            bsr     .swap           ; efface l'ancien, dessine le nouveau
+            lea     .swap(pc),a0    ; efface l'ancien, dessine le nouveau
+            bsr     .both
             cmpi.w  #2,d5           ; virgule des milliers : avec ce chiffre
             bne.s   .end
             eor.b   d3,d2
@@ -1383,7 +1414,9 @@ hstep       movem.l d0-d7/a0-a3,-(a7)
             tst.b   d3
             bmi.s   .cd
             moveq   #-1,d2          ; plus de milliers : effacer
-.cd         bsr     hglyph
+.cd         move.l  a0,d1
+            lea     .glyph(pc),a0
+            bsr     .both
             bra.s   .end
 .lap        move.b  1(a3),d3
             move.b  1(a2),d2
@@ -1392,13 +1425,15 @@ hstep       movem.l d0-d7/a0-a3,-(a7)
             move.b  d2,1(a3)
             move.w  d6,d0
             addi.w  #70,d0
-            bsr.s   .swap
+            lea     .swap(pc),a0
+            bsr     .both
             bra.s   .end
 .wr         move.b  (a2),d1         ; nombre de clés (humains)
             move.b  d1,(a3)
             bmi.s   .end
             ext.w   d1
-            bsr     hwdig
+            lea     .wdig(pc),a0
+            bsr     .both
 .end        movem.l (a7)+,d0-d7/a0-a3
             rts
 ; .swap : en x d0, efface le chiffre d3 (s'il y en a un), dessine le d2
@@ -1419,6 +1454,43 @@ hstep       movem.l d0-d7/a0-a3,-(a7)
             bsr     hdig
             move.l  (a7)+,d2
 .sw2        rts
+; .both : l'opération a0 sur l'écran a1, puis en course sur le fond de la
+; course (BACKGND, d'où les voitures restaurent l'écran en passant)
+.both       move.l  a0,-(a7)
+            jsr     (a0)
+            movea.l (a7)+,a0
+            tst.b   HRACE(a4)
+            beq.s   .b1
+            move.l  a1,-(a7)
+            movea.l BACKGND(a4),a1
+            jsr     (a0)
+            movea.l (a7)+,a1
+.b1         rts
+; .rest : fond des lignes 7-17 de la colonne d7 (5 blocs) sur a1
+.rest       movem.l d0-d2/a0-a1,-(a7)
+            movea.l HBG(a4),a0
+            move.w  d7,d0
+            mulu    #40,d0
+            adda.w  d0,a0
+            lea     7*160(a1),a1
+            adda.w  d0,a1
+            moveq   #10,d1
+.bg         moveq   #9,d2
+.bgw        move.l  (a0)+,(a1)+
+            dbra    d2,.bgw
+            lea     160-40(a0),a0
+            lea     160-40(a1),a1
+            dbra    d1,.bg
+            movem.l (a7)+,d0-d2/a0-a1
+            rts
+; .glyph : glyphe d1 (adresse) en x d0, couleur d2
+.glyph      movea.l d1,a0
+            bra     hglyph
+; .wdig : chiffre des clés d1
+.wdig       movem.l d0-d7/a0-a3,-(a7)
+            bsr     hwdig
+            movem.l (a7)+,d0-d7/a0-a3
+            rts
 
 ; hnamew : d0 = largeur du nom de la voiture d7 (humaine)
 hnamew      move.w  d7,d0
