@@ -142,3 +142,16 @@ Environ 45 boucles sont bornées à 3 (joueurs humains) dans une vingtaine de fo
 | `F_0D72E`, `F_0D772` | Les 3 lettres des initiales |
 | `F_112EA` | Chiffres d'un nombre |
 | `F_101C6` `$104A8`, `$11002` | Tri du classement (3 comparaisons pour 4 voitures) et règle « derrière le premier drone » (positions 0 à 2) |
+
+### En-tête à 4 colonnes (verte humaine)
+
+| Point d'entrée | Original | Remplacement |
+|---|---|---|
+| table de sauts `$120` → `hlab` | `F_0A1C6` étiquettes (3 images de 112 pixels) | 4 colonnes de 80 pixels : nom (BLUE, RED, YELLOW, GREEN dessiné à la main, ou DRONE), clé, « LAP » ; pixel par pixel, à la préparation de l'écran |
+| `$E4` → `hwr`, `$210` → `hsc`, `$204` → `hlap` (+ appels directs `$F752`, `$FCD8`, `$10210`, `$10CAA`, `$F760`, `$1021E`) | `F_0A236` clés, `F_0B5E6` score, `F_0BB56` tour | `hupd` : cache par écran des valeurs affichées ; en course (appels depuis `F_098BA`), un seul élément par image (un chiffre, le tour, les clés) ; ailleurs tout de suite. Les copies `-$1306` (score) et `-$12D6` (tour, utilisée par la logique de course) sont conservées |
+| `$994C` → `hblink` | `F_0994C` efface la colonne du premier (clignotement) | efface la colonne dans la disposition à 4 colonnes ; elle est remise depuis une copie quand le jeu la redemande |
+| `$FAB4` → `upin` | lecture du contrôle dans « customize car » | pour la verte, le tir ne compte qu'après avoir été relâché |
+| `$DDBC` → `cust4`, `$DD90` | « customized car includes » de 3 voitures | rouge sous sa voiture déplacée (x 12), verte en (172, 173) |
+| `$F922`, `$F93C`, `$FA74`, `$FB1E`, `$FC22` | tables à 3 entrées de « customize car » (nom, largeur, couleur) | tables à 4 entrées dans le BSS ajouté |
+| `$24C` → `title5` | `F_0AFCE` (image n° 8 = titre) | « AI WORK BY CLAUDE » au-dessus du copyright |
+| `hud4` | | touche `*` du pavé numérique : 5 clés pour chaque voiture (pour les essais) |

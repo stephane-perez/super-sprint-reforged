@@ -37,7 +37,7 @@ AUTOPILOT = [
     (0x2508, '4eba0cec', '4eba22dc'),
 ]
 
-BSSX = 256          # octets ajoutés au BSS (= BSSX de src/p4.s)
+BSSX = 4096         # octets ajoutés au BSS (= BSSX de src/p4.s)
 P4B = -0x2B74 - BSSX  # début de la zone ajoutée, relatif à a4
 
 def lea_a4(disp):
@@ -78,6 +78,14 @@ def p4_patches(B):
         (0x024C, '4ef90000afce', jmp_abs(E(18))),
         # F_0F6DA (« customize car ») : lecture du contrôle -> upin
         (0xFAB4, '4ead0096548f', '4eb9%08x' % E(19)),
+        # en-tête à 4 colonnes quand la verte est humaine (p4.s, hlab...) :
+        # étiquettes, clés, score, tour
+        (0x0120, '4ef90000a1c6', jmp_abs(E(21))),
+        (0x00E4, '4ef90000a236', jmp_abs(E(22))),
+        (0x0210, '4ef90000b5e6', jmp_abs(E(23))),
+        (0x0204, '4ef90000bb56', jmp_abs(E(24))),
+        # F_0994C (clignotement de la colonne du premier) -> hblink
+        (0x994C, '4e560000302e0008', jmp_abs(E(25)) + '4e71'),
         # F_0DD20 : « customized car includes » de la rouge sous sa voiture
         # déplacée à gauche (x 92 -> 12), et celui de la verte (cust4)
         (0xDD90, '3f3c005c', '3f3c000c'),
@@ -164,6 +172,14 @@ def p4_patches(B):
                           (0xFA74, -0x2240, UPCOL), (0xFB1E, -0x2240, UPCOL),
                           (0xFC22, -0x2240, UPCOL)):
         P.append((at, '41ec%04x' % (disp & 0xFFFF), '41ec%04x' % (new & 0xFFFF)))
+    # appels directs (jsr relatif) du score et du tour : vers hsc / hlap
+    def jsr_rel(at, target):
+        d = target - (at + 2)
+        assert -0x8000 <= d < 0x8000, hex(at)
+        return '4eba%04x' % (d & 0xFFFF)
+    for at, orig, n in ((0xF752, 0xB5E6, 23), (0xFCD8, 0xB5E6, 23), (0x10210, 0xB5E6, 23),
+                        (0x10CAA, 0xB5E6, 23), (0xF760, 0xBB56, 24), (0x1021E, 0xBB56, 24)):
+        P.append((at, '4eba%04x' % ((orig - (at + 2)) & 0xFFFF), jsr_rel(at, E(n))))
     # « voiture % 3 » avant les effets sonores -> jsr vmap (la verte prend
     # la voie d'une voiture pilotée par l'ordinateur)
     VMAP = (0x316, 0x33A, 0x916, 0xB3C, 0x120C, 0x1366, 0x3FB0, 0x42AC, 0x4740)
@@ -179,7 +195,7 @@ def p4_patches(B):
     for k, (disp, sites) in enumerate(TABLES):
         for at in sites:
             P.append((at, lea_a4(disp), lea_a4(P4B + 8 * k)))
-    return P, [0x6342, 0xE8A8, 0x97EE, 0xE34A, 0xD674, 0xFAB6, 0xDDBE] + list(VMAP)  # nouvelles relocations
+    return P, [0x6342, 0xE8A8, 0x97EE, 0xE34A, 0xD674, 0xFAB6, 0xDDBE, 0x994E] + list(VMAP)  # nouvelles relocations
 
 def reframe(text, start, end, link, moves, count):
     """Agrandit le cadre de pile d'une fonction (link a6,#n) et déplace ses

@@ -64,7 +64,7 @@ TSPAL       equ     -$179e          ; palettes du raster du choix du circuit ;
                                     ; sert qu'à la 4e colonne
 ; Le patcheur agrandit le BSS de BSSX octets : ils apparaissent sous le BSS
 ; d'origine, en P4B(a4). On y range les tables par voiture à 4 cases.
-BSSX        equ     256             ; utilisés : 80 + 48 + 40 + 32 + 1
+BSSX        equ     4096            ; utilisés : 80 + 48 + 40 + 32 + 1, en-tête dès 256
 P4B         equ     -$2b74-BSSX
 NPOS        equ     10              ; tables de positions (x ou y), 4 mots
 DRONES      equ     -$f4a           ; drone[4]
@@ -103,6 +103,11 @@ GREEN2      equ     $041            ; couleurs 1 et 2, libres dans cette bande)
             bra.w   title5          ; +72 : entrée $24C (F_0AFCE, images)
             bra.w   upin            ; +76 : lecture du contrôle, « customize car »
             bra.w   cust4           ; +80 : améliorations de la verte (F_0DD20)
+            bra.w   hlab            ; +84 : entrée $120 (F_0A1C6, étiquettes)
+            bra.w   hwr             ; +88 : entrée $E4 (F_0A236, clés)
+            bra.w   hsc             ; +92 : entrée $210 (F_0B5E6, score)
+            bra.w   hlap            ; +96 : entrée $204 (F_0BB56, tour)
+            bra.w   hblink          ; +100 : F_0994C (clignotement du premier)
 
 ; ----------------------------------------------------------------------------
 ; init : remplace l'appel de F_0624A au démarrage (jsr $24(a5)).
@@ -985,6 +990,877 @@ putcell     movem.l d2-d6/a2-a3,-(a7)
             addq.w  #6,d2
             rts
 
+
+; ============================================================================
+; En-tête à 4 colonnes (course, podium, « customize car »), quand la voiture
+; verte est pilotée par un humain. L'original dessine 3 colonnes de 107
+; pixels avec des routines aux positions codées en dur : étiquettes
+; F_0A1C6, chiffre des clés F_0A236, score F_0B5E6, tour F_0BB56. On les
+; remplace par 4 colonnes de 80 pixels (5 blocs) :
+;   lignes 0-5  : nom (BLUE, RED, YELLOW, GREEN ou DRONE), clé et nombre de
+;                 clés pour un humain, « LAP » à droite (x+62) ;
+;   lignes 7-17 : score aligné à droite (6 chiffres à x+0..+54, virgule des
+;                 milliers à x+30), tour à x+70.
+; Couleurs (palette de course) : 9 bleu, $A rouge, $C jaune, 5 vert foncé.
+; Les étiquettes sont tirées des images du jeu (banque -$6BA(a4) + $6720 :
+; 6 images 112x6, 7 blocs, couleur 8 transparente), « GREEN » est dessiné
+; à la main. Elles ne sont dessinées qu'à la préparation d'un écran (appel
+; de F_0A1C6 pour la voiture 0), pixel par pixel. Les chiffres sont
+; redessinés à la demande (appels de F_0A236, F_0B5E6, F_0BB56), colonne par
+; colonne, seulement si leurs valeurs ont changé sur cet écran (cache par
+; écran, comme la ligne du bas).
+; ============================================================================
+SPRBANK     equ     -$6ba           ; pointeur : banque d'images
+LABSPR      equ     $6720           ; étiquettes, $150 octets chacune
+WDIGSPR     equ     $6f00           ; chiffres des clés 16x6, $30 octets
+HFONT       equ     -$1348          ; pointeur : police (+$A50 + n*$58)
+HBG         equ     -$134c          ; pointeur : fond des lignes 7-17
+LBG         equ     -$1350          ; pointeur : bande des étiquettes 0-5
+SCORES      equ     -$12ee          ; score affichable, 6 octets par voiture
+SCOREDISP   equ     -$1306          ; sa copie (F_0B5E6)
+LAPS        equ     -$f42           ; tours
+LAPDISP     equ     -$12d6          ; leur copie (F_0BB56, logique du jeu)
+F_0A1C6     equ     $a1c6
+F_0A236     equ     $a236
+F_0B5E6     equ     $b5e6
+F_0BB56     equ     $bb56
+HDR         equ     P4B+256         ; 2 entrées : écran.l, témoin (8),
+HDRSZ       equ     48              ; 4 colonnes x 8 octets affichés,
+HBLINK      equ     44              ; colonnes effacées par le clignotement,
+HNSAVE      equ     45              ; modifiées depuis leur copie,
+HVALID      equ     46              ; dont la copie est valable (bits)
+HSAVE       equ     P4B+512         ; copie des colonnes dessinées : 2 écrans
+HCOLSZ      equ     11*40+8         ; x 4 colonnes x (11 lignes x 5 blocs +
+                                    ; les 8 valeurs affichées)
+HWIT        equ     12*160+4*8      ; témoin : tour de la colonne 0
+HLASTS      equ     HDR+2*HDRSZ     ; dernier écran mis à jour (l)
+HLASTF      equ     HLASTS+4        ; et à quelle image (w)
+
+hcolor      dc.b    9,$a,$c,5
+; nom d'un humain : image, x, largeur (la verte : txgreen)
+hname       dc.w    0,0,22, 1,0,18, 2,7,33, 0,0,30
+; nom d'un drone (« DRONE » aux couleurs de la voiture)
+hdrone      dc.w    3,6,29, 4,6,29, 5,22,29, 3,6,29
+; « LAP » : image, x
+hlapw       dc.w    0,74, 1,74, 2,90, 0,74
+
+; hlab : entrée $120, F_0A1C6(écran, voiture)
+hlab        bsr     g4human
+            bne.s   .ours
+            move.l  a5,a0
+            adda.l  #F_0A1C6,a0
+            jmp     (a0)
+.ours       tst.w   8(a7)
+            bne.s   .no
+            movem.l d0-d7/a0-a3,-(a7)
+            movea.l 4+48(a7),a1
+            bsr     lab4
+            lea     HDR(a4),a0      ; écran repeint : rien n'est à jour
+            clr.l   (a0)
+            clr.l   HDRSZ(a0)
+            clr.l   HLASTS(a4)
+            movem.l (a7)+,d0-d7/a0-a3
+.no         rts
+
+; hwr : entrée $E4, F_0A236(écran, voiture)
+hwr         bsr     g4human
+            bne     hupd
+            move.l  a5,a0
+            adda.l  #F_0A236,a0
+            jmp     (a0)
+
+; hsc : entrée $210, F_0B5E6(écran, voiture) ; garde sa copie du score
+hsc         bsr     g4human
+            bne.s   .ours
+            move.l  a5,a0
+            adda.l  #F_0B5E6,a0
+            jmp     (a0)
+.ours       btst    #0,FRAMES+1(a4)
+            bne.s   hupd
+            move.w  8(a7),d0
+            mulu    #6,d0
+            lea     SCORES(a4),a0
+            adda.w  d0,a0
+            lea     SCOREDISP(a4),a1
+            adda.w  d0,a1
+            moveq   #5,d1
+.cp         move.b  (a0)+,(a1)+
+            dbra    d1,.cp
+            bra.s   hupd
+
+; hlap : entrée $204, F_0BB56(écran, voiture) ; garde sa copie du tour
+hlap        bsr     g4human
+            bne.s   .ours
+            move.l  a5,a0
+            adda.l  #F_0BB56,a0
+            jmp     (a0)
+.ours       btst    #0,FRAMES+1(a4)
+            bne.s   .chk
+            move.w  8(a7),d0
+            add.w   d0,d0
+            lea     LAPS(a4),a0
+            lea     LAPDISP(a4),a1
+            move.w  (a0,d0.w),(a1,d0.w)
+.chk        ; le tour est demandé juste après le score (F_098BA, podium,
+            ; customize car) : déjà mis à jour pour cet écran à cette image
+            move.l  4(a7),d0
+            cmp.l   HLASTS(a4),d0
+            bne.s   hupd
+            move.w  FRAMES(a4),d0
+            cmp.w   HLASTF(a4),d0
+            bne.s   hupd
+            rts
+
+; hupd : met à jour les chiffres de l'en-tête de l'écran 4(a7), demandés
+; pour la voiture 8(a7). Pour ne jamais dépasser le temps d'une image, un
+; seul élément est mis à jour par appel (un chiffre, le tour, les clés) ;
+; les autres le sont aux appels suivants (une image chacun).
+hupd        movem.l d0-d7/a0-a3,-(a7)
+            movea.l 4+48(a7),a1
+            move.l  a1,HLASTS(a4)   ; (voir hlap)
+            move.w  FRAMES(a4),HLASTF(a4)
+            ; entrée de cet écran
+            lea     HDR(a4),a2
+            cmpa.l  (a2),a1
+            beq.s   .known
+            lea     HDRSZ(a2),a2
+            cmpa.l  (a2),a1
+            beq.s   .known
+            lea     HDR(a4),a2
+            move.l  SHOWN(a4),d0
+            cmp.l   (a2),d0
+            bne.s   .full
+            lea     HDRSZ(a2),a2
+            bra.s   .full
+.known      move.l  HWIT(a1),d0
+            cmp.l   4(a2),d0
+            bne.s   .full
+            move.l  HWIT+4(a1),d0
+            cmp.l   8(a2),d0
+            beq.s   .blink
+.full       move.l  a1,(a2)
+            moveq   #3,d7
+.inv        bsr     hinvcol
+            dbra    d7,.inv
+            clr.b   HBLINK(a2)
+            clr.b   HNSAVE(a2)
+            clr.b   HVALID(a2)
+.blink      ; colonne effacée par le clignotement et redemandée : on remet
+            ; sa copie (ou on la redessinera)
+            move.w  8+48(a7),d7
+            cmpi.w  #4,d7
+            bhs.s   .steps
+            bclr    d7,HBLINK(a2)
+            beq.s   .steps
+            btst    d7,HVALID(a2)
+            bne.s   .copy
+            bsr     hinvcol
+            bra.s   .steps
+.copy       bsr     hsaveptr
+            bsr     hcolptr
+            moveq   #10,d1
+.rs         moveq   #9,d2
+.rsw        move.l  (a0)+,(a1)+
+            dbra    d2,.rsw
+            lea     160-40(a1),a1
+            dbra    d1,.rs
+            move.w  d7,d0           ; valeurs de la copie
+            lsl.w   #3,d0
+            lea     12(a2,d0.w),a1
+            move.l  (a0)+,(a1)+
+            move.l  (a0),(a1)
+            bsr     hwit
+.steps      moveq   #0,d7           ; voiture
+            lea     12(a2),a3       ; valeurs affichées
+.col        btst    d7,HBLINK(a2)   ; effacée : elle attend
+            bne.s   .next
+            lea     -8(a7),a7       ; valeurs à afficher
+            movea.l a7,a0
+            bsr     hvals
+            movea.l a7,a0
+            movea.l a3,a1
+            moveq   #7,d1
+.cmp        cmpm.b  (a0)+,(a1)+
+            dbne    d1,.cmp
+            beq.s   .clean
+            movea.l (a2),a1         ; un élément de cette colonne
+            move.l  a2,-(a7)
+            lea     4(a7),a2
+            bsr     hstep
+            movea.l (a7)+,a2
+            bset    d7,HNSAVE(a2)
+            bsr     hwit
+            lea     8(a7),a7
+            bra.s   .more
+.clean      lea     8(a7),a7
+            bclr    d7,HNSAVE(a2)   ; colonne à jour depuis peu : copie
+            beq.s   .next
+            bsr     hsaveptr
+            bsr     hcolptr
+            moveq   #10,d1
+.sv         moveq   #9,d2
+.svw        move.l  (a1)+,(a0)+
+            dbra    d2,.svw
+            lea     160-40(a1),a1
+            dbra    d1,.sv
+            move.l  (a3),(a0)+      ; et ses valeurs
+            move.l  4(a3),(a0)
+            bset    d7,HVALID(a2)
+.more       ; en course (appel depuis F_098BA, chaque image) : un élément
+            ; par appel ; ailleurs (podium, customize car) : tout de suite
+            move.l  48(a7),d0
+            sub.l   a5,d0
+            cmpi.l  #$9922,d0
+            beq.s   .done
+            cmpi.l  #$9930,d0
+            beq.s   .done
+            bra     .steps
+.next       addq.l  #8,a3
+            addq.w  #1,d7
+            cmpi.w  #4,d7
+            blt     .col
+.done       movem.l (a7)+,d0-d7/a0-a3
+            rts
+
+; hinvcol : colonne d7 de l'entrée a2 à redessiner entièrement (fond à
+; remettre : tour = -2, le reste vide)
+hinvcol     move.w  d7,d0
+            lsl.w   #3,d0
+            lea     12(a2,d0.w),a0
+            move.l  #$fffeffff,(a0)+
+            move.l  #$ffffffff,(a0)
+            bclr    d7,HVALID(a2)
+            rts
+
+; hcolptr : a1 = zone des chiffres (ligne 7) de la colonne d7, écran (a2)
+hcolptr     movea.l (a2),a1
+            move.w  d7,d0
+            mulu    #40,d0
+            lea     7*160(a1),a1
+            adda.w  d0,a1
+            rts
+
+; hwit : témoin de l'écran (a2) à jour (il est dans la colonne 0)
+hwit        movea.l (a2),a1
+            move.l  HWIT(a1),4(a2)
+            move.l  HWIT+4(a1),8(a2)
+            rts
+
+; hblink : remplace F_0994C(voiture) ($994C, sauté depuis son début) :
+; F_098BA fait clignoter la colonne du premier en effaçant sa zone de
+; chiffres (aux positions d'origine) ; ici, on efface la colonne de la
+; voiture dans la disposition à 4 colonnes, sur l'écran en cours, et on
+; marque ses valeurs comme non affichées pour qu'elle soit redessinée.
+hblink      bsr     g4human
+            bne.s   .ours
+            link    a6,#0           ; début de F_0994C
+            move.w  8(a6),d0
+            move.l  a5,a0
+            adda.l  #$9954,a0
+            jmp     (a0)
+.ours       movem.l d0-d7/a0-a3,-(a7)
+            move.w  4+48(a7),d7
+            movea.l SCREEN(a4),a1
+            movea.l HBG(a4),a0
+            move.w  d7,d0
+            mulu    #40,d0
+            adda.w  d0,a0
+            lea     7*160(a1),a2
+            adda.w  d0,a2
+            moveq   #10,d1
+.bg         moveq   #9,d2
+.bgw        move.l  (a0)+,(a2)+
+            dbra    d2,.bgw
+            lea     160-40(a0),a0
+            lea     160-40(a2),a2
+            dbra    d1,.bg
+            lea     HDR(a4),a2      ; cette colonne n'est plus affichée
+            cmpa.l  (a2),a1
+            beq.s   .inv
+            lea     HDRSZ(a2),a2
+            cmpa.l  (a2),a1
+            bne.s   .end
+.inv        bset    d7,HBLINK(a2)   ; à remettre depuis sa copie
+            move.l  HWIT(a1),4(a2)  ; témoin (s'il est dans cette colonne)
+            move.l  HWIT+4(a1),8(a2)
+.end        clr.l   HLASTS(a4)
+            movem.l (a7)+,d0-d7/a0-a3
+            rts
+
+; hsaveptr : a0 = copie de la colonne d7 pour l'entrée a2
+hsaveptr    lea     HSAVE(a4),a0
+            lea     HDR(a4),a1
+            cmpa.l  a1,a2
+            beq.s   .e0
+            lea     4*HCOLSZ(a0),a0
+.e0         move.w  d7,d0
+            mulu    #HCOLSZ,d0
+            adda.w  d0,a0
+            rts
+
+; hvals : 8 octets en a0 pour la voiture d7 : clés (0-9, -1 si drone), tour
+; (0-9), score (6 chiffres, négatif = vide)
+hvals       move.w  d7,d0
+            add.w   d0,d0
+            moveq   #-1,d1
+            lea     DRONES(a4),a1
+            tst.w   (a1,d0.w)
+            bne.s   .dr
+            lea     WRENCHES(a4),a1
+            move.w  (a1,d0.w),d1
+            cmpi.w  #9,d1
+            bls.s   .dr
+            moveq   #9,d1
+.dr         move.b  d1,(a0)+
+            lea     LAPS(a4),a1
+            move.w  (a1,d0.w),d1
+            cmpi.w  #9,d1
+            bls.s   .l9
+            moveq   #9,d1
+.l9         move.b  d1,(a0)+
+            move.w  d7,d0
+            mulu    #6,d0
+            lea     SCORES(a4),a1
+            adda.w  d0,a1
+            moveq   #5,d1
+.sc         move.b  (a1)+,(a0)+
+            dbra    d1,.sc
+            rts
+
+; hstep : met à jour UN élément de la colonne d7 de l'écran a1 : a3 =
+; valeurs affichées, a2 = valeurs voulues (8 octets : clés, tour, score) ;
+; tour affiché = -2 : on remet d'abord le fond de la colonne.
+hstep       movem.l d0-d7/a0-a3,-(a7)
+            move.w  d7,d6
+            mulu    #80,d6          ; x de la colonne
+            lea     hcolor(pc),a0
+            moveq   #0,d4
+            move.b  (a0,d7.w),d4    ; couleur
+            cmpi.b  #-2,1(a3)
+            bne.s   .digits
+            move.l  a1,-(a7)        ; fond des lignes 7-17 (5 blocs)
+            movea.l HBG(a4),a0
+            move.w  d7,d0
+            mulu    #40,d0
+            adda.w  d0,a0
+            lea     7*160(a1),a1
+            adda.w  d0,a1
+            moveq   #10,d1
+.bg         moveq   #9,d2
+.bgw        move.l  (a0)+,(a1)+
+            dbra    d2,.bgw
+            lea     160-40(a0),a0
+            lea     160-40(a1),a1
+            dbra    d1,.bg
+            movea.l (a7)+,a1
+            st      1(a3)           ; tour : rien d'affiché
+            bra     .end
+.digits     moveq   #0,d5           ; score : chiffres 0-5
+.sd         move.b  2(a3,d5.w),d3   ; affiché
+            move.b  2(a2,d5.w),d2   ; voulu
+            cmp.b   d3,d2
+            bne.s   .sdo
+            addq.w  #1,d5
+            cmpi.w  #6,d5
+            blt.s   .sd
+            bra.s   .lap
+.sdo        move.b  d2,2(a3,d5.w)
+            move.w  d5,d0
+            mulu    #10,d0
+            cmpi.w  #3,d5
+            blt.s   .s3
+            addq.w  #4,d0
+.s3         add.w   d6,d0
+            bsr     .swap           ; efface l'ancien, dessine le nouveau
+            cmpi.w  #2,d5           ; virgule des milliers : avec ce chiffre
+            bne.s   .end
+            eor.b   d3,d2
+            bpl.s   .end            ; même présence
+            lea     hcomma(pc),a0
+            move.w  d6,d0
+            addi.w  #30,d0
+            move.w  d4,d2
+            tst.b   d3
+            bmi.s   .cd
+            moveq   #-1,d2          ; plus de milliers : effacer
+.cd         bsr     hglyph
+            bra.s   .end
+.lap        move.b  1(a3),d3
+            move.b  1(a2),d2
+            cmp.b   d3,d2
+            beq.s   .wr
+            move.b  d2,1(a3)
+            move.w  d6,d0
+            addi.w  #70,d0
+            bsr.s   .swap
+            bra.s   .end
+.wr         move.b  (a2),d1         ; nombre de clés (humains)
+            move.b  d1,(a3)
+            bmi.s   .end
+            ext.w   d1
+            bsr     hwdig
+.end        movem.l (a7)+,d0-d7/a0-a3
+            rts
+; .swap : en x d0, efface le chiffre d3 (s'il y en a un), dessine le d2
+.swap       movem.l d2-d3,-(a7)
+            tst.b   d3
+            bmi.s   .sw1
+            moveq   #0,d1
+            move.b  d3,d1
+            moveq   #-1,d2
+            bsr     hdig
+.sw1        movem.l (a7)+,d2-d3
+            tst.b   d2
+            bmi.s   .sw2
+            moveq   #0,d1
+            move.b  d2,d1
+            move.l  d2,-(a7)
+            move.w  d4,d2
+            bsr     hdig
+            move.l  (a7)+,d2
+.sw2        rts
+
+; hnamew : d0 = largeur du nom de la voiture d7 (humaine)
+hnamew      move.w  d7,d0
+            mulu    #6,d0
+            move.l  a0,-(a7)
+            lea     hname+4(pc),a0
+            move.w  (a0,d0.w),d0
+            movea.l (a7)+,a0
+            rts
+
+; hwdig : chiffre des clés d1 de la voiture d7, colonne x d6, écran a1 :
+; la case (6x6) est remplie de la couleur du fond de la bande, prise 2
+; pixels à sa droite, puis on y pose le chiffre (images à $6F00, 16x6)
+hwdig       bsr.s   hnamew
+            add.w   d6,d0
+            addi.w  #1+2+14+1,d0    ; après le nom et la clé
+            move.w  d0,d4
+            movem.l d1/d4,-(a7)
+            movea.l a1,a0           ; couleur du fond
+            addq.w  #8,d0
+            moveq   #2,d1
+            move.l  #160,d3
+            bsr     getpx
+            moveq   #0,d1           ; remplissage, lignes 0-4
+.fy         moveq   #0,d0
+.fx         movem.l d0,-(a7)
+            add.w   d4,d0
+            bsr     putpx
+            movem.l (a7)+,d0
+            addq.w  #1,d0
+            cmpi.w  #6,d0
+            blt.s   .fx
+            addq.w  #1,d1
+            cmpi.w  #5,d1
+            blt.s   .fy
+            movem.l (a7)+,d1/d4
+            movea.l SPRBANK(a4),a0
+            adda.l  #WDIGSPR,a0
+            mulu    #$30,d1
+            adda.w  d1,a0
+            moveq   #0,d0           ; x source
+            moveq   #6,d6           ; largeur
+            move.w  d4,d7           ; x destination
+            moveq   #-1,d5          ; pas de recoloration
+            moveq   #8,d3           ; pas : 1 bloc
+            bra     sprcopy
+
+; hdig : gros chiffre d1 (0-9) en x d0 : dessiné (couleur d2) ou effacé
+; (d2 < 0 : le fond est remis sous ses pixels), écran a1
+hdig        movea.l HFONT(a4),a0
+            lea     $a50(a0),a0
+            mulu    #$58,d1
+            adda.w  d1,a0
+; hglyph : glyphe a0 (11 lignes : forme.l, masque.l ; forme en colonnes
+; 13-21) en x d0, lignes 7-17. d2 = couleur : forme dans cette couleur,
+; ombre (masque sans forme) en noir ; d2 < 0 : on remet le fond (HBG) sous
+; la forme et l'ombre (effacement d'un chiffre sans toucher ses voisins).
+hglyph      movem.l d0-d7/a0-a4,-(a7)
+            move.w  d0,d3
+            andi.w  #15,d3
+            subi.w  #13,d3          ; décalage : > 0 à droite, < 0 à gauche
+            lsr.w   #4,d0
+            lsl.w   #3,d0
+            lea     7*160(a1),a2
+            adda.w  d0,a2
+            tst.w   d2
+            bmi.s   .erase
+            lea     hpltab(pc),a3
+            andi.w  #15,d2
+            add.w   d2,d2
+            adda.w  (a3,d2.w),a3
+            bra.s   .go
+.erase      movea.l HBG(a4),a4
+            adda.w  d0,a4
+            lea     hplbg(pc),a3
+.go         moveq   #10,d7
+.row        move.l  (a0)+,d4        ; forme
+            move.l  (a0)+,d5
+            not.l   d5              ; forme + ombre
+            tst.w   d3
+            bmi.s   .left
+            lsr.l   d3,d4
+            lsr.l   d3,d5
+            bra.s   .sh
+.left       neg.w   d3
+            lsl.l   d3,d4
+            lsl.l   d3,d5
+            neg.w   d3
+.sh         move.l  d5,d6
+            not.l   d6              ; hors forme et ombre
+            swap    d4
+            swap    d5
+            swap    d6
+            movea.l a2,a1
+            jsr     (a3)
+            swap    d4
+            swap    d5
+            swap    d6
+            lea     8(a2),a1
+            addq.l  #8,a4
+            jsr     (a3)
+            subq.l  #8,a4
+            lea     160(a2),a2
+            lea     160(a4),a4
+            dbra    d7,.row
+            movem.l (a7)+,d0-d7/a0-a4
+            rts
+; un bloc (a1) : 4 plans ; d4 forme, d5 forme+ombre, d6 = ~d5
+hpltab      dc.w    hpl0-hpltab,hpl1-hpltab,hpl2-hpltab,hpl3-hpltab,hpl4-hpltab,hpl5-hpltab,hpl6-hpltab,hpl7-hpltab,hpl8-hpltab,hpl9-hpltab,hpl10-hpltab,hpl11-hpltab,hpl12-hpltab,hpl13-hpltab,hpl14-hpltab,hpl15-hpltab
+hpl0
+            and.w   d6,(a1)+
+            and.w   d6,(a1)+
+            and.w   d6,(a1)+
+            and.w   d6,(a1)+
+            rts
+hpl1
+            and.w   d6,(a1)
+            or.w    d4,(a1)+
+            and.w   d6,(a1)+
+            and.w   d6,(a1)+
+            and.w   d6,(a1)+
+            rts
+hpl2
+            and.w   d6,(a1)+
+            and.w   d6,(a1)
+            or.w    d4,(a1)+
+            and.w   d6,(a1)+
+            and.w   d6,(a1)+
+            rts
+hpl3
+            and.w   d6,(a1)
+            or.w    d4,(a1)+
+            and.w   d6,(a1)
+            or.w    d4,(a1)+
+            and.w   d6,(a1)+
+            and.w   d6,(a1)+
+            rts
+hpl4
+            and.w   d6,(a1)+
+            and.w   d6,(a1)+
+            and.w   d6,(a1)
+            or.w    d4,(a1)+
+            and.w   d6,(a1)+
+            rts
+hpl5
+            and.w   d6,(a1)
+            or.w    d4,(a1)+
+            and.w   d6,(a1)+
+            and.w   d6,(a1)
+            or.w    d4,(a1)+
+            and.w   d6,(a1)+
+            rts
+hpl6
+            and.w   d6,(a1)+
+            and.w   d6,(a1)
+            or.w    d4,(a1)+
+            and.w   d6,(a1)
+            or.w    d4,(a1)+
+            and.w   d6,(a1)+
+            rts
+hpl7
+            and.w   d6,(a1)
+            or.w    d4,(a1)+
+            and.w   d6,(a1)
+            or.w    d4,(a1)+
+            and.w   d6,(a1)
+            or.w    d4,(a1)+
+            and.w   d6,(a1)+
+            rts
+hpl8
+            and.w   d6,(a1)+
+            and.w   d6,(a1)+
+            and.w   d6,(a1)+
+            and.w   d6,(a1)
+            or.w    d4,(a1)+
+            rts
+hpl9
+            and.w   d6,(a1)
+            or.w    d4,(a1)+
+            and.w   d6,(a1)+
+            and.w   d6,(a1)+
+            and.w   d6,(a1)
+            or.w    d4,(a1)+
+            rts
+hpl10
+            and.w   d6,(a1)+
+            and.w   d6,(a1)
+            or.w    d4,(a1)+
+            and.w   d6,(a1)+
+            and.w   d6,(a1)
+            or.w    d4,(a1)+
+            rts
+hpl11
+            and.w   d6,(a1)
+            or.w    d4,(a1)+
+            and.w   d6,(a1)
+            or.w    d4,(a1)+
+            and.w   d6,(a1)+
+            and.w   d6,(a1)
+            or.w    d4,(a1)+
+            rts
+hpl12
+            and.w   d6,(a1)+
+            and.w   d6,(a1)+
+            and.w   d6,(a1)
+            or.w    d4,(a1)+
+            and.w   d6,(a1)
+            or.w    d4,(a1)+
+            rts
+hpl13
+            and.w   d6,(a1)
+            or.w    d4,(a1)+
+            and.w   d6,(a1)+
+            and.w   d6,(a1)
+            or.w    d4,(a1)+
+            and.w   d6,(a1)
+            or.w    d4,(a1)+
+            rts
+hpl14
+            and.w   d6,(a1)+
+            and.w   d6,(a1)
+            or.w    d4,(a1)+
+            and.w   d6,(a1)
+            or.w    d4,(a1)+
+            and.w   d6,(a1)
+            or.w    d4,(a1)+
+            rts
+hpl15
+            and.w   d6,(a1)
+            or.w    d4,(a1)+
+            and.w   d6,(a1)
+            or.w    d4,(a1)+
+            and.w   d6,(a1)
+            or.w    d4,(a1)+
+            and.w   d6,(a1)
+            or.w    d4,(a1)+
+            rts
+; effacement : fond (a4) sous forme + ombre
+hplbg       move.w  (a4),d0
+            and.w   d5,d0
+            and.w   d6,(a1)
+            or.w    d0,(a1)+
+            move.w  2(a4),d0
+            and.w   d5,d0
+            and.w   d6,(a1)
+            or.w    d0,(a1)+
+            move.w  4(a4),d0
+            and.w   d5,d0
+            and.w   d6,(a1)
+            or.w    d0,(a1)+
+            move.w  6(a4),d0
+            and.w   d5,d0
+            and.w   d6,(a1)
+            or.w    d0,(a1)+
+            rts
+
+; lab4 : étiquettes des 4 colonnes sur l'écran a1 (lignes 0-5)
+lab4        moveq   #0,d7
+.col        move.w  d7,d6
+            mulu    #80,d6          ; x de la colonne
+            move.w  d7,d0
+            add.w   d0,d0
+            lea     DRONES(a4),a0
+            tst.w   (a0,d0.w)
+            bne.s   .drone
+            cmpi.w  #3,d7
+            bne.s   .hum
+            move.w  d6,d0           ; « GREEN »
+            addq.w  #1,d0
+            bsr     grdraw
+            bra.s   .wr
+.hum        lea     hname(pc),a0
+            bsr.s   .spr
+.wr         bsr     hnamew          ; clé après le nom
+            add.w   d6,d0
+            addq.w  #1+2,d0
+            movem.l d6-d7,-(a7)
+            move.w  d0,d7
+            movea.l SPRBANK(a4),a0
+            adda.l  #LABSPR,a0      ; image 0
+            moveq   #49,d0
+            moveq   #14,d6
+            moveq   #-1,d5
+            moveq   #56,d3
+            bsr     sprcopy
+            movem.l (a7)+,d6-d7
+            bra.s   .lap
+.drone      lea     hdrone(pc),a0
+            bsr.s   .spr
+.lap        move.w  d7,d0           ; « LAP »
+            lsl.w   #2,d0
+            lea     hlapw(pc),a0
+            adda.w  d0,a0
+            movem.l d6-d7,-(a7)
+            move.w  (a0)+,d0
+            mulu    #$150,d0
+            movea.l SPRBANK(a4),a2
+            adda.l  #LABSPR,a2
+            adda.l  d0,a2
+            move.w  (a0),d0         ; x source
+            moveq   #-1,d5
+            cmpi.w  #3,d7
+            bne.s   .lc
+            move.w  #$0905,d5       ; bleu -> vert
+.lc         add.w   #62,d6
+            move.w  d6,d7
+            moveq   #18,d6
+            movea.l a2,a0
+            moveq   #56,d3
+            bsr     sprcopy
+            movem.l (a7)+,d6-d7
+            addq.w  #1,d7
+            cmpi.w  #4,d7
+            blt     .col
+            rts
+; .spr : nom depuis la table a0 (image, x, largeur) pour la voiture d7
+.spr        move.w  d7,d0
+            mulu    #6,d0
+            adda.w  d0,a0
+            movem.l d6-d7,-(a7)
+            move.w  (a0)+,d0
+            mulu    #$150,d0
+            movea.l SPRBANK(a4),a2
+            adda.l  #LABSPR,a2
+            adda.l  d0,a2
+            move.w  (a0)+,d0
+            addq.w  #1,d6
+            move.w  d6,d7           ; x destination
+            move.w  (a0),d6         ; largeur
+            moveq   #-1,d5
+            movea.l a2,a0
+            moveq   #56,d3
+            bsr.s   sprcopy
+            movem.l (a7)+,d6-d7
+            rts
+
+; grdraw : « GREEN » (txgreen) en x d0, lignes 0-5, écran a1
+grdraw      movem.l d0-d4/a0,-(a7)
+            move.w  d0,d4
+            lea     txgreen(pc),a0
+            moveq   #0,d1
+.y          moveq   #0,d3
+.x          move.b  (a0)+,d2
+            beq.s   .n
+            subq.b  #1,d2           ; 1 -> vert (5), 2 -> noir (0)
+            bne.s   .k
+            moveq   #5,d2
+            bra.s   .p
+.k          moveq   #0,d2
+.p          move.w  d4,d0
+            add.w   d3,d0
+            bsr     putpx
+.n          addq.w  #1,d3
+            cmpi.w  #30,d3
+            blt.s   .x
+            addq.w  #1,d1
+            cmpi.w  #6,d1
+            blt.s   .y
+            movem.l (a7)+,d0-d4/a0
+            rts
+
+; sprcopy : copie, de l'image a0 (pas d3 octets par ligne), les pixels
+; x = d0 .. d0+d6-1 des lignes 0-5 vers x = d7 de l'écran a1 ; couleur 8
+; transparente ; d5 = recoloration (ancienne << 8 | nouvelle) ou -1
+sprcopy     movem.l d0-d7,-(a7)
+            moveq   #0,d1
+.y          moveq   #0,d4           ; colonne
+.x          movem.l d0-d1/d4,-(a7)
+            add.w   d4,d0
+            bsr.s   getpx
+            movem.l (a7)+,d0-d1/d4
+            cmpi.w  #8,d2
+            beq.s   .skip
+            move.w  d5,-(a7)
+            lsr.w   #8,d5
+            cmp.b   d5,d2
+            bne.s   .rc
+            move.w  (a7),d2
+            andi.w  #$ff,d2
+.rc         move.w  (a7)+,d5
+            move.w  d0,-(a7)
+            move.w  d7,d0
+            add.w   d4,d0
+            bsr.s   putpx
+            move.w  (a7)+,d0
+.skip       addq.w  #1,d4
+            cmp.w   d6,d4
+            blt.s   .x
+            addq.w  #1,d1
+            cmpi.w  #6,d1
+            blt.s   .y
+            movem.l (a7)+,d0-d7
+            rts
+
+; getpx : d2 = couleur du pixel (d0, d1) de l'image a0, pas d3 octets
+getpx       movem.l d3-d5/a0,-(a7)
+            mulu    d1,d3
+            adda.l  d3,a0
+            move.w  d0,d3
+            lsr.w   #4,d3
+            lsl.w   #3,d3
+            adda.w  d3,a0
+            move.w  d0,d4
+            not.w   d4
+            andi.w  #15,d4
+            moveq   #0,d2
+            moveq   #3,d5
+            addq.l  #8,a0
+.l          move.w  -(a0),d3
+            add.w   d2,d2
+            btst    d4,d3
+            beq.s   .z
+            addq.w  #1,d2
+.z          dbra    d5,.l
+            movem.l (a7)+,d3-d5/a0
+            rts
+
+; putpx : pixel (d0, d1) de l'écran a1 en couleur d2
+putpx       movem.l d3-d5/a1,-(a7)
+            move.w  d1,d3
+            mulu    #160,d3
+            adda.l  d3,a1
+            move.w  d0,d3
+            lsr.w   #4,d3
+            lsl.w   #3,d3
+            adda.w  d3,a1
+            move.w  d0,d4
+            not.w   d4
+            andi.w  #15,d4
+            moveq   #0,d5
+.p          move.w  (a1),d3
+            bclr    d4,d3
+            btst    d5,d2
+            beq.s   .n
+            bset    d4,d3
+.n          move.w  d3,(a1)+
+            addq.w  #1,d5
+            cmpi.w  #4,d5
+            blt.s   .p
+            movem.l (a7)+,d3-d5/a1
+            rts
+
 ; ---- données ---------------------------------------------------------------
 ; positions (x ou y) par voiture des animations dessinées sur l'image des
 ; voitures ; dans l'original, 3 cases chacune, en -$2184 ... -$21BA(a4).
@@ -1044,3 +1920,27 @@ gwrench     dc.b    %10100000                       ; clé à molette
             dc.b    %11100000
             dc.b    %10100000
             even
+
+; « GREEN » : 6 lignes de 30 pixels (0 transparent, 1 vert, 2 noir),
+; contour noir à gauche et en dessous comme la police des étiquettes
+txgreen
+            dc.b    0,2,1,1,1,1,2,1,1,1,1,0,2,1,1,1,1,1,2,1,1,1,1,1,2,1,1,0,2,1
+            dc.b    2,1,1,2,2,2,2,1,1,2,1,1,2,1,1,2,2,2,2,1,1,2,2,2,2,1,1,1,2,1
+            dc.b    2,1,1,2,1,1,2,1,1,1,1,2,2,1,1,1,1,0,2,1,1,1,1,0,2,1,1,1,1,1
+            dc.b    2,1,1,2,2,1,2,1,1,2,1,1,2,1,1,2,2,0,2,1,1,2,2,0,2,1,1,2,1,1
+            dc.b    2,2,1,1,1,1,2,1,1,2,1,1,2,1,1,1,1,1,2,1,1,1,1,1,2,1,1,2,2,1
+            dc.b    0,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,0,2,2
+
+; virgule des milliers, au format de la police des gros chiffres
+hcomma
+            dc.l    $00000000,$ffffffff
+            dc.l    $00000000,$ffffffff
+            dc.l    $00000000,$ffffffff
+            dc.l    $00000000,$ffffffff
+            dc.l    $00000000,$ffffffff
+            dc.l    $00000000,$ffffffff
+            dc.l    $00000000,$ffffffff
+            dc.l    $00060000,$fff8ffff
+            dc.l    $00060000,$fff8ffff
+            dc.l    $00020000,$fff8ffff
+            dc.l    $00040000,$fff8ffff
