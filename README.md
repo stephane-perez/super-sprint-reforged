@@ -5,6 +5,7 @@
 Reverse engineering, patches and tools for **Super Sprint** (Electric Dreams, 1986) on the Atari ST, using the methods and tools of [IK+ Reforged](https://github.com/stephane-perez/ik-plus-reforged):
 
 - **hard disk install**: the remaining protection (a read of the floppy's boot sector) is removed; the game runs from a hard disk (tested under EmuTOS, on ST and STE);
+- **RESET button**: the game's reset routine (a picture, then back to TOS, which locked up the machine) is no longer installed; RESET restarts TOS normally;
 - **4th player**: the green car, which was always driven by the computer (the "drone"), can be driven by a human;
 - **new controls** for every car: a joystick on a **parallel-port adapter** (two sockets) and the **STE joypads** A and B.
 
@@ -54,7 +55,7 @@ make check                           # checks the result
 
 | Result | MD5 |
 |---|---|
-| `SSPRINT.PRG` (default) | `245c258d8afc741b4e9a677571d4a317` |
+| `SSPRINT.PRG` (default) | `a98d459e3afe2b6649cd2b3c4041b3e3` |
 | `SSPRINT.PRG` with `P4=0` (hard disk fix only) | `c98082d03fdc9f2ba12e6321a8e83188` |
 
 ## Study

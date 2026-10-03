@@ -1108,9 +1108,9 @@ hupd        movem.l d0-d7/a0-a3,-(a7)
             ; sa copie (ou on la redessinera)
             move.w  8+48(a7),d7
             cmpi.w  #4,d7
-            bhs.s   .steps
+            bhs.w   .steps
             bclr    d7,HBLINK(a2)
-            beq.s   .steps
+            beq.w   .steps
             btst    d7,HVALID(a2)
             bne.s   .copy
             bsr     hinvcol         ; pas de copie : toute la colonne,
@@ -1139,11 +1139,18 @@ hupd        movem.l d0-d7/a0-a3,-(a7)
             bra     .steps
 .copy       bsr     hsaveptr
             bsr     hcolptr
-            moveq   #10,d1
+            movea.l a1,a3           ; en course : aussi dans le fond, d'où
+            tst.b   HRACE(a4)       ; les voitures restaurent l'écran
+            beq.s   .rs0
+            suba.l  (a2),a3
+            adda.l  BACKGND(a4),a3
+.rs0        moveq   #10,d1
 .rs         moveq   #9,d2
-.rsw        move.l  (a0)+,(a1)+
+.rsw        move.l  (a0),(a3)+
+            move.l  (a0)+,(a1)+
             dbra    d2,.rsw
             lea     160-40(a1),a1
+            lea     160-40(a3),a3
             dbra    d1,.rs
             move.w  d7,d0           ; valeurs de la copie
             lsl.w   #3,d0
@@ -1155,7 +1162,7 @@ hupd        movem.l d0-d7/a0-a3,-(a7)
 .steps      moveq   #0,d7           ; voiture
             lea     12(a2),a3       ; valeurs affichées
 .col        btst    d7,HBLINK(a2)   ; effacée : elle attend
-            bne.s   .next
+            bne.w   .next
             lea     -8(a7),a7       ; valeurs à afficher
             movea.l a7,a0
             bsr     hvals
@@ -1186,6 +1193,11 @@ hupd        movem.l d0-d7/a0-a3,-(a7)
 .save       bclr    d7,HNSAVE(a2)
             bsr     hsaveptr
             bsr     hcolptr
+            tst.b   HRACE(a4)       ; en course : copie prise dans le fond
+            beq.s   .svs            ; (jamais de voiture dessus)
+            suba.l  (a2),a1
+            adda.l  BACKGND(a4),a1
+.svs
             moveq   #10,d1
 .sv         moveq   #9,d2
 .svw        move.l  (a1)+,(a0)+
@@ -1234,7 +1246,7 @@ hwit        movea.l (a2),a1
 ; hblink : remplace F_0994C(voiture) ($994C, sauté depuis son début) :
 ; F_098BA fait clignoter la colonne du premier en effaçant sa zone de
 ; chiffres (aux positions d'origine) ; ici, on efface la colonne de la
-; voiture dans la disposition à 4 colonnes, sur l'écran en cours, et on
+; voiture dans la disposition à 4 colonnes, sur l'écran en cours et dans le fond, et on
 ; marque ses valeurs comme non affichées pour qu'elle soit redessinée.
 hblink      bsr     g4human
             bne.s   .ours
@@ -1252,12 +1264,17 @@ hblink      bsr     g4human
             adda.w  d0,a0
             lea     7*160(a1),a2
             adda.w  d0,a2
+            movea.l BACKGND(a4),a3  ; et dans le fond, comme F_0994C
+            lea     7*160(a3),a3
+            adda.w  d0,a3
             moveq   #10,d1
 .bg         moveq   #9,d2
-.bgw        move.l  (a0)+,(a2)+
+.bgw        move.l  (a0),(a3)+
+            move.l  (a0)+,(a2)+
             dbra    d2,.bgw
             lea     160-40(a0),a0
             lea     160-40(a2),a2
+            lea     160-40(a3),a3
             dbra    d1,.bg
             lea     HDR(a4),a2      ; cette colonne n'est plus affichée
             cmpa.l  (a2),a1

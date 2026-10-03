@@ -30,6 +30,7 @@ Conséquence utile : on peut **allonger le TEXT** (ajouter du code à la fin) sa
 |---|---|
 | `$0` | `jmp $25E` |
 | `$9512` | Initialisations : chargement de `init.dat`, `F_0624A` (IKBD) via `jsr $24(a5)`, `F_05EB8` (protection)… |
+| `P_060E2` | Installe une routine de reset (`resvalid` = `$31415926`, `resvector` = `$612C`) : au bouton RESET, image puis retour au TOS. Neutralisée (`$6114`, 6 `nop`) : elle bloquait la machine |
 | `F_05EB8` | **Protection** : `Floprd` du secteur de boot du lecteur A:, puis compare les octets 8–10 à `"SOA"` (écrit sous la forme `$52+1`, `$50-1`, `$42-1`). Échec → `@14CCC = 1` |
 | `$9812` | Si `@14CCC` ≠ 0, la course s'arrête aussitôt |
 | `F_05D0A` | Sauvegarde de `ssprint.hsc`, seulement si `@14CCC` = 0 |
@@ -149,7 +150,7 @@ Environ 45 boucles sont bornées à 3 (joueurs humains) dans une vingtaine de fo
 |---|---|---|
 | table de sauts `$120` → `hlab` | `F_0A1C6` étiquettes (3 images de 112 pixels) | 4 colonnes de 80 pixels : nom (BLUE, RED, YELLOW, GREEN dessiné à la main, ou DRONE), clé, « LAP » ; pixel par pixel, à la préparation de l'écran |
 | `$E4` → `hwr`, `$210` → `hsc`, `$204` → `hlap` (+ appels directs `$F752`, `$FCD8`, `$10210`, `$10CAA`, `$F760`, `$1021E`) | `F_0A236` clés, `F_0B5E6` score, `F_0BB56` tour | `hupd` : cache par écran des valeurs affichées ; en course (appels depuis `F_098BA`), un seul élément par image (un chiffre, le tour, les clés) ; ailleurs tout de suite. Les copies `-$1306` (score) et `-$12D6` (tour, utilisée par la logique de course) sont conservées. Appels du code de course : dessin aussi dans le fond `BACKGND` (`-$56`), d'où les voitures restaurent l'écran, et mise à jour du masque de priorité (`-$5E`+`$3E80`, 1 bit/pixel, 0 = devant les sprites) sous les chiffres, comme le faisait `F_0BB56` : sans lui, une voiture qui passe efface les chiffres |
-| `$994C` → `hblink` | `F_0994C` efface la colonne du premier (clignotement, voiture choisie par `F_09830`) | efface la colonne dans la disposition à 4 colonnes ; elle est remise depuis une copie (faite dès que la colonne est à jour) quand le jeu redemande cette voiture ; le masque de priorité de la colonne est remis à `$FF` à l'effacement et refait à la remise |
+| `$994C` → `hblink` | `F_0994C` efface la colonne du premier (clignotement, voiture choisie par `F_09830`) | efface la colonne dans la disposition à 4 colonnes, sur l'écran et dans le fond `BACKGND` comme l'original (sinon une voiture qui passe sur la colonne vide y fait réapparaître des morceaux de chiffres) ; elle est remise depuis une copie (faite dès que la colonne est à jour, prise dans le fond, sans voiture ; remise sur l'écran et dans le fond) quand le jeu redemande cette voiture ; le masque de priorité de la colonne est remis à `$FF` à l'effacement et refait à la remise |
 | `$1B98`, `$2800` → `rpal` ; `rtb` | palette unique de la course (`-$17BE`) | bande de raster lignes 0-17 avec la couleur 5 en vert vif (`$070`) ; Timer B du jeu remplacé en course par `rtb` (9 interruptions par image au lieu de ~100) |
 | `hud4` | « DRONE LAP n » en bas | verte humaine : « DRONE LAP » effacé une fois (2 écrans, fond, image maître) |
 | `$E4F2` | fond `$D` sous « customized car includes » pour la voiture 1 | pour les voitures 1 et 3 (en bas) |

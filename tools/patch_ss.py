@@ -13,6 +13,11 @@ Correctif « disque dur » (toujours appliqué)
   « SOA » aux octets 8-10. Sans cette disquette, la course s'arrête tout de
   suite et les records ne sont pas sauvés ; sous EmuTOS sans disquette,
   l'attente est infinie. On saute directement au rts (drapeau d'échec à 0).
+  $6114 : P_060E2 installe une routine de reset (resvalid = $31415926,
+  resvector = $612C) : au bouton RESET, elle affiche une image et rend la
+  main au TOS. Appelée très tôt, avant que le TOS ne restaure la
+  configuration mémoire, elle plante la machine : il fallait l'éteindre.
+  Sans elle, RESET relance le TOS normalement (reset à chaud).
 
 Option --p4 : code de src/p4.s ajouté à la fin du TEXT
   Le DATA et le BSS sont décalés d'autant. Le jeu n'y accède que par a4
@@ -27,6 +32,8 @@ MD5 = '2d828d5478e14b7e7b7bbb820ade4cfd'
 # (adresse dans le TEXT, octets d'origine, nouveaux octets)
 HD = [
     (0x5EC8, '7a083f3c', '60000058'),       # bra $5F22 (unlk / rts)
+    # P_060E2 : resvalid/resvector non installés (6 nop)
+    (0x6114, '21fc31415926042621c0042a', '4e71' * 6),
 ]
 
 # --autopilot (tests seulement) : dans la boucle des voitures ($2508), une
