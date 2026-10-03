@@ -84,6 +84,11 @@ RCNT        equ     P4B+360         ; raster de la course : compteurs,
 RPALS       equ     P4B+368         ; 2 palettes (en-tête, reste)
 RACEPAL     equ     -$17be          ; palette de la course
 CUSTPAL     equ     -$171e          ; palettes de « customize car »
+PODPAL      equ     -$1654          ; palettes du podium (bandes 1-3 :
+                                    ; couleurs des voitures)
+PRIOMASK    equ     $3e80           ; masque de priorité : (-$5E(a4)) + $3E80,
+                                    ; 1 bit par pixel, 40 octets par ligne ;
+                                    ; 0 = devant les voitures
 HGREEN      equ     $070            ; vert vif de la colonne verte
 MASTER      equ     -$5a            ; image maître de la course
 GREEN1      equ     $070            ; verts de la 4e voiture (palette P2,
@@ -126,6 +131,7 @@ GREEN2      equ     $041            ; couleurs 1 et 2, libres dans cette bande)
 ; ports joypad (cookie _MCH = STE ou Falcon), puis continue vers F_0624A.
 ; ----------------------------------------------------------------------------
 init        move.w  #CTL3_DEF,CTL+6(a4)
+            move.w  #HGREEN,PODPAL+2*5(a4)  ; podium : en-tête (bande 0)
             move.w  #HGREEN,CUSTPAL+2*5(a4) ; « customize car » : en-tête,
                                     ; colonne verte en vert vif (couleur 5,
                                     ; inutilisée ailleurs dans cette bande)
@@ -1142,8 +1148,9 @@ hupd        movem.l d0-d7/a0-a3,-(a7)
             move.w  d7,d0           ; valeurs de la copie
             lsl.w   #3,d0
             lea     12(a2,d0.w),a1
-            move.l  (a0)+,(a1)+
-            move.l  (a0),(a1)
+            move.l  (a0)+,(a1)
+            move.l  (a0),4(a1)
+            bsr     hmvals          ; et leur masque de priorité
             bsr     hwit
 .steps      moveq   #0,d7           ; voiture
             lea     12(a2),a3       ; valeurs affichées
@@ -1259,6 +1266,7 @@ hblink      bsr     g4human
             cmpa.l  (a2),a1
             bne.s   .end
 .inv        bset    d7,HBLINK(a2)   ; à remettre depuis sa copie
+            bsr     hmcol           ; les voitures passent sur la colonne vide
             move.l  HWIT(a1),4(a2)  ; témoin (s'il est dans cette colonne)
             move.l  HWIT+4(a1),8(a2)
 .end        clr.l   HLASTS(a4)
@@ -1466,8 +1474,12 @@ hstep       movem.l d0-d7/a0-a3,-(a7)
             jsr     (a0)
             movea.l (a7)+,a1
 .b1         rts
-; .rest : fond des lignes 7-17 de la colonne d7 (5 blocs) sur a1
-.rest       movem.l d0-d2/a0-a1,-(a7)
+; .rest : fond des lignes 7-17 de la colonne d7 (5 blocs) sur a1 (et en
+; course, masque de priorité de la colonne à 1)
+.rest       tst.b   HRACE(a4)
+            beq.s   .rm
+            bsr     hmcol
+.rm         movem.l d0-d2/a0-a1,-(a7)
             movea.l HBG(a4),a0
             move.w  d7,d0
             mulu    #40,d0
@@ -1548,7 +1560,10 @@ hdig        movea.l HFONT(a4),a0
 ; 13-21) en x d0, lignes 7-17. d2 = couleur : forme dans cette couleur,
 ; ombre (masque sans forme) en noir ; d2 < 0 : on remet le fond (HBG) sous
 ; la forme et l'ombre (effacement d'un chiffre sans toucher ses voisins).
-hglyph      movem.l d0-d7/a0-a4,-(a7)
+hglyph      tst.b   HRACE(a4)       ; en course : masque de priorité
+            beq.s   .nm
+            bsr     hgmask
+.nm         movem.l d0-d7/a0-a4,-(a7)
             move.w  d0,d3
             andi.w  #15,d3
             subi.w  #13,d3          ; décalage : > 0 à droite, < 0 à gauche
@@ -1746,6 +1761,102 @@ hplbg       move.w  (a4),d0
             and.w   d6,(a1)
             or.w    d0,(a1)+
             rts
+
+; hgmask : masque de priorité sous le glyphe a0 en x d0 (lignes 7-17) :
+; dessiné (d2 >= 0) : 0 sous forme + ombre (les voitures passent dessous,
+; comme sous les chiffres d'origine, F_0BB56) ; effacé (d2 < 0) : 1
+hgmask      movem.l d0-d7/a0-a2,-(a7)
+            movea.l -$5e(a4),a2
+            adda.l  #PRIOMASK+7*40,a2
+            move.w  d0,d3
+            andi.w  #15,d3
+            subi.w  #13,d3
+            lsr.w   #4,d0
+            add.w   d0,d0
+            adda.w  d0,a2
+            moveq   #10,d7
+.r          addq.l  #4,a0
+            move.l  (a0)+,d5
+            not.l   d5              ; forme + ombre
+            tst.w   d3
+            bmi.s   .l
+            lsr.l   d3,d5
+            bra.s   .s
+.l          neg.w   d3
+            lsl.l   d3,d5
+            neg.w   d3
+.s          tst.w   d2
+            bmi.s   .e
+            not.l   d5
+            swap    d5
+            and.w   d5,(a2)
+            swap    d5
+            and.w   d5,2(a2)
+            bra.s   .n
+.e          swap    d5
+            or.w    d5,(a2)
+            swap    d5
+            or.w    d5,2(a2)
+.n          lea     40(a2),a2
+            dbra    d7,.r
+            movem.l (a7)+,d0-d7/a0-a2
+            rts
+
+; hmcol : masque de priorité de la colonne d7 à 1 (lignes 7-17)
+hmcol       movem.l d0-d1/a0,-(a7)
+            movea.l -$5e(a4),a0
+            adda.l  #PRIOMASK+7*40,a0
+            move.w  d7,d0
+            mulu    #10,d0
+            adda.w  d0,a0
+            moveq   #10,d1
+.r          move.l  #-1,(a0)
+            move.l  #-1,4(a0)
+            move.w  #-1,8(a0)
+            lea     40(a0),a0
+            dbra    d1,.r
+            movem.l (a7)+,d0-d1/a0
+            rts
+
+; hmvals : masque de priorité de la colonne d7 pour les valeurs (a1)
+; (après avoir remis une copie de la colonne)
+hmvals      movem.l d0-d6/a0-a1,-(a7)
+            bsr.s   hmcol
+            move.w  d7,d6
+            mulu    #80,d6
+            moveq   #0,d2           ; « dessiné »
+            moveq   #0,d5
+.sd         move.b  2(a1,d5.w),d1
+            bmi.s   .sn
+            move.w  d5,d0
+            mulu    #10,d0
+            cmpi.w  #3,d5
+            blt.s   .s3
+            addq.w  #4,d0
+.s3         add.w   d6,d0
+            bsr.s   .dig
+.sn         addq.w  #1,d5
+            cmpi.w  #6,d5
+            blt.s   .sd
+            tst.b   4(a1)
+            bmi.s   .nc
+            lea     hcomma(pc),a0
+            move.w  d6,d0
+            addi.w  #30,d0
+            bsr     hgmask
+.nc         move.b  1(a1),d1
+            bmi.s   .end
+            move.w  d6,d0
+            addi.w  #70,d0
+            bsr.s   .dig
+.end        movem.l (a7)+,d0-d6/a0-a1
+            rts
+.dig        movea.l HFONT(a4),a0
+            lea     $a50(a0),a0
+            ext.w   d1
+            mulu    #$58,d1
+            adda.w  d1,a0
+            bra     hgmask
 
 ; lab4 : étiquettes des 4 colonnes sur l'écran a1 (lignes 0-5)
 lab4        moveq   #0,d7
