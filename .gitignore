@@ -1,6 +1,7 @@
 # Build output and local tools
 build/
 work/
+no_distrib/
 .tools/
 
 # Never commit game files or anything derived from them
