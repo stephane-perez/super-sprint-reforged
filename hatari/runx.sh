@@ -2,7 +2,8 @@
 # runx.sh <name> <machine> <tos.img> <seconds> <key_script> [extra hatari options]
 # Hatari on a virtual X display (Xvfb); keys are sent with xdotool, so they go
 # through Hatari's joystick emulation. Key script lines: "t down|up|tap key", or
-# "t cmd shortcut" (Hatari shortcut on the command fifo, e.g. warmreset).
+# "t cmd shortcut" (Hatari shortcut on the command fifo, e.g. warmreset),
+# or "t raw command" (any command-fifo line, e.g. hatari-debug savebin ...).
 # Joystick keys (see joy4.cfg):
 #   port 0 = W A S D + Q, port 1 = I J K L + U,
 #   STE joypad A = Y B N M + V, STE joypad B = 6 7 9 8 + 0,
@@ -31,6 +32,7 @@ for i in $(seq 1 "$D"); do
       up)   xdotool keyup "$k";;
       tap)  xdotool keydown "$k"; sleep 0.15; xdotool keyup "$k";;
       cmd)  echo "hatari-shortcut $k" > "$F";;
+      raw)  echo "$k" > "$F";;
     esac
   done
   for j in $(seq 1 "$SHOTS"); do

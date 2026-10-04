@@ -56,7 +56,7 @@ make check                             # vérifie le résultat
 | Résultat | MD5 |
 |---|---|
 | `SSPRINT.PRG` (défaut) | `4f3d1eab8225705843656bb97e756630` |
-| `SSPRINT.PRG` avec `P4=0` (disque dur seul) | `c98082d03fdc9f2ba12e6321a8e83188` |
+| `SSPRINT.PRG` avec `P4=0` (disque dur seul) | `65e5b04c48c3b07f4154a15d7a9f0c51` |
 
 ## Étude
 
