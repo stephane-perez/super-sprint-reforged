@@ -1,0 +1,107 @@
+SUPER SPRINT REFORGED - Atari ST
+================================
+
+Super Sprint (c) 1986 Atari Games. Version Atari ST (c) 1986 Electric
+Dreams Software, par State of the Art. Cette version modifiée n'est ni
+liée ni approuvée par un ayant droit.
+
+Projet : https://github.com/stephane-perez/super-sprint-reforged
+Rétro-ingénierie et code : Stéphane Perez, avec Claude (IA d'Anthropic).
+
+
+LANCER LE JEU
+-------------
+
+Copiez le dossier SSPRINT sur un disque dur ou une disquette, puis lancez
+SSPRINT.PRG. Le chargeur AUTO\SUPER.PRG de la disquette d'origine n'est
+plus nécessaire. Écran couleur, 512 Ko de mémoire ou plus.
+
+
+DIFFÉRENCES AVEC LE JEU D'ORIGINE
+---------------------------------
+
+1. Installation
+
+- Disque dur : l'original vérifie le secteur de boot de la disquette du
+  lecteur A: avant chaque course. Cette vérification est supprimée : le
+  jeu tourne depuis un disque dur ou n'importe quelle disquette, et les
+  records sont enregistrés.
+- Bouton RESET : l'original installe sa propre routine de reset, qui
+  bloque la machine. Elle n'est plus installée : RESET relance le TOS
+  normalement.
+
+2. Quatrième joueur : la voiture verte
+
+- La voiture verte était toujours pilotée par l'ordinateur (le « drone »).
+  Elle peut maintenant être pilotée par un humain, comme la bleue, la
+  rouge et la jaune.
+- F5, dans l'écran des options, choisit son contrôle. Elle démarre sur
+  « none » : elle reste alors un drone. Pour jouer, donnez-lui un
+  contrôle et appuyez sur l'accélérateur pendant « PREPARE TO RACE ».
+- La verte peut rejoindre une partie, continuer après une course,
+  choisir ses améliorations (« customize car ») et saisir ses initiales.
+  La partie continue tant qu'une des quatre voitures est pilotée par un
+  humain.
+- Ses améliorations sont remises à zéro au début d'une nouvelle partie.
+
+3. Contrôles
+
+- Nouveaux contrôles pour toutes les voitures :
+    joystick 2  adaptateur port parallèle, prise « joystick 3 »
+    joystick 3  adaptateur port parallèle, prise « joystick 4 »
+    joypad a    port joypad A du STE / Falcon (accélérer = bouton A)
+    joypad b    port joypad B du STE / Falcon
+  L'adaptateur est celui de Gauntlet II, Leatherneck ou Dynabusters+.
+  Les joypads ne sont lus que sur STE ou Falcon (le Mega STE n'a pas de
+  ports joypad).
+- « mouse », qui n'a jamais pu servir, est remplacé par « none ». La
+  règle « can't have the mouse and joystick 0 at the same time » disparaît.
+
+4. Écrans
+
+- Écran titre : « AI WORK BY CLAUDE ».
+- Écran des options : quatre voitures (la verte comprise), noms et
+  contrôles sur quatre colonnes, aide sur deux lignes.
+- Choix du circuit, « prepare to race », initiales : quatre colonnes.
+- Course : quand la verte est pilotée par un humain, la ligne du haut a
+  quatre colonnes (bleue, rouge, jaune, verte) : nom ou DRONE, clés à
+  molette, score et tour. Le nom et le score de la verte sont en vert
+  vif. Le score de la voiture en tête clignote, verte comprise. La ligne
+  du bas (« TRACK n », « DRONE LAP n ») est effacée.
+- « Prepare to race » : « customized car includes » aussi pour la verte.
+- Podium et « customize car » : la voiture verte, en vert vif.
+
+5. Son
+
+- Le pilote sonore a trois voies pour quatre voitures : à quatre joueurs
+  humains, les bruits de moteur se partagent les voies.
+
+6. Touche d'essai
+
+- « * » du pavé numérique pendant une course : 5 clés à molette de plus
+  pour chaque voiture.
+
+
+LIMITES CONNUES
+---------------
+
+- La verte ne peut pas lancer une partie depuis l'écran titre ; elle
+  rejoint une partie lancée par une autre voiture.
+- Deux voitures ne peuvent pas avoir le même contrôle, « none » compris
+  (règle du jeu d'origine).
+
+
+FICHIERS
+--------
+
+Le programme modifié, SSPRINT.PRG, est fabriqué à partir de votre propre
+copie du jeu. Les fichiers de données sont recopiés tels quels et doivent
+être ceux-ci (non compressés) :
+
+    SUPER2.DAT    74355 octets   MD5 2d828d5478e14b7e7b7bbb820ade4cfd
+    SUPER.DAT    212650 octets   MD5 3692bea1615e36f003cec5e14bc54669
+    SUPER1.DAT    17024 octets   MD5 b3c2e08bb9fd5ab92eab39b45fd713a1
+    INIT.DAT       5139 octets   MD5 68d72c8952f071b6b0ca513d8bf1c989
+    SSPRINT.HSC     295 octets   (records, contenu quelconque)
+
+Fourni « en l'état », sans aucune garantie ; utilisation à vos risques.

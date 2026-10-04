@@ -13,7 +13,7 @@ Rétro-ingénierie, correctifs et outils pour **Super Sprint** (Electric Dreams,
 >
 > *Super Sprint* © 1986 Atari Games, adaptation Atari ST © 1986 Electric Dreams Software. Ce projet n'est **ni affilié, ni approuvé, ni lié** à ces sociétés ou à d'autres ayants droit.
 >
-> **Ce dépôt ne contient aucune partie du jeu** : ni programme, ni graphismes, ni données, d'origine ou modifiés. Il ne contient que du code et des outils originaux, qui modifient **sur votre ordinateur** une copie du jeu que **vous** fournissez. Vous seul êtes responsable de vous assurer que vous avez le droit d'utiliser cette copie, par exemple en possédant l'original. Seule la version décrite plus bas (MD5 de `SUPER2.DAT`) est acceptée.
+> **Ce dépôt ne contient aucune partie du jeu** : ni programme, ni graphismes, ni données, d'origine ou modifiés. Il ne contient que du code et des outils originaux, qui modifient **sur votre ordinateur** une copie du jeu que **vous** fournissez. Vous seul êtes responsable de vous assurer que vous avez le droit d'utiliser cette copie, par exemple en possédant l'original. Seule la version décrite plus bas (taille et MD5 des fichiers) est acceptée.
 >
 > Tout est fourni « en l'état », sans aucune garantie. À utiliser à vos risques, y compris sur une vraie machine.
 
@@ -31,9 +31,9 @@ Rétro-ingénierie, correctifs et outils pour **Super Sprint** (Electric Dreams,
 
 L'adaptateur parallèle est celui de *Gauntlet II*, *Leatherneck* ou *Dynabusters+*. Les joypads ne sont lus que si le cookie `_MCH` indique un STE ou un Falcon.
 
-**Voiture verte** : son score, ses clés et son tour s'affichent sur la ligne du bas (« GREEN CAR »). Les écrans « prepare to race », choix du circuit et initiales ont 4 colonnes ; elle peut continuer après une course, saisir ses initiales, et la partie continue tant qu'une voiture est humaine.
+**Voiture verte** : quand elle est pilotée par un humain, l'en-tête de la course a 4 colonnes (bleue, rouge, jaune, verte : nom ou DRONE, clés, score, tour). Les écrans des options, « prepare to race », choix du circuit et initiales ont 4 colonnes ; elle peut continuer après une course, choisir ses améliorations, saisir ses initiales, et la partie continue tant qu'une voiture est humaine. La liste complète des différences avec le jeu d'origine est dans [dist/LISEZMOI.TXT](dist/LISEZMOI.TXT) (français) et [dist/README.TXT](dist/README.TXT) (anglais), recopiés à côté de `SSPRINT.PRG`.
 
-**Limites actuelles** : la verte ne peut pas lancer une partie depuis l'écran titre, seulement la rejoindre ; deux voitures sur `none` sont refusées (« can't have two controls the same »). Voir [docs/fr/METHODOLOGIE.md](docs/fr/METHODOLOGIE.md) §5.
+**Limites actuelles** : la verte ne peut pas lancer une partie depuis l'écran titre, seulement la rejoindre ; deux voitures sur `none` sont refusées (« can't have two controls the same »). Voir [docs/fr/METHODOLOGIE.md](docs/fr/METHODOLOGIE.md) §6.
 
 ## Construction
 
@@ -47,11 +47,17 @@ make game GAME=/chemin/vers/SSPRINT    # corrige VOTRE copie
 make check                             # vérifie le résultat
 ```
 
-`GAME` est le dossier qui contient `SUPER2.DAT`, `SUPER.DAT`, `SUPER1.DAT`, `INIT.DAT`, `SSPRINT.HSC` (et `SSPRINT.SEQ`). Le résultat, `build/SSPRINT/`, contient `SSPRINT.PRG` et les fichiers de données : copiez ce dossier sur l'Atari et lancez `SSPRINT.PRG`. Le chargeur `AUTO/SUPER.PRG` n'est plus nécessaire.
+`GAME` est le dossier qui contient `SUPER2.DAT`, `SUPER.DAT`, `SUPER1.DAT`, `INIT.DAT`, `SSPRINT.HSC` (et `SSPRINT.SEQ`). Le résultat, `build/SSPRINT/`, contient `SSPRINT.PRG`, les fichiers de données et `README.TXT` / `LISEZMOI.TXT` : copiez ce dossier sur l'Atari et lancez `SSPRINT.PRG`. Le chargeur `AUTO/SUPER.PRG` n'est plus nécessaire.
 
-| Fichier fourni | MD5 |
-|---|---|
-| `SUPER2.DAT` | `2d828d5478e14b7e7b7bbb820ade4cfd` |
+Les fichiers doivent être ceux-ci, **non compressés** (certaines versions crackées les compressent : elles sont refusées). `make game` les vérifie avant de construire. `SSPRINT.HSC` (records) et `SSPRINT.SEQ` changent d'une copie à l'autre et ne sont pas vérifiés. Les correctifs ont été écrits pour ce `SUPER2.DAT` ; c'est très probablement le fichier original d'Electric Dreams (le crack 42-crew n'y touche pas), mais cela n'a pas pu être vérifié sur une disquette d'origine.
+
+| Fichier fourni | Taille (octets) | MD5 |
+|---|---|---|
+| `SUPER2.DAT` | 74 355 | `2d828d5478e14b7e7b7bbb820ade4cfd` |
+| `SUPER.DAT` | 212 650 | `3692bea1615e36f003cec5e14bc54669` |
+| `SUPER1.DAT` | 17 024 | `b3c2e08bb9fd5ab92eab39b45fd713a1` |
+| `INIT.DAT` | 5 139 | `68d72c8952f071b6b0ca513d8bf1c989` |
+| `SSPRINT.HSC` | 295 | (non vérifié) |
 
 | Résultat | MD5 |
 |---|---|
@@ -61,6 +67,7 @@ make check                             # vérifie le résultat
 ## Étude
 
 - `tools/trace_ss.py` : désassembleur récursif pour ce PRG (relocations, table de sauts, variables a4). `make listing GAME=…` → `work/ss.lst` ; `tools/show.py <début> <fin>` en affiche un extrait. Nécessite `pip install capstone`.
+- `tools/check_data.py` : vérifie la taille et le MD5 des fichiers de données (et reconnaît un fichier compressé). `tools/txt2st.py` : convertit `dist/*.TXT` dans le jeu de caractères de l'Atari ST (fins de ligne CR LF).
 - `tools/patch_ss.py` : applique les correctifs (vérifie le MD5 et chaque octet d'origine), ajoute le code de `src/p4.s` à la fin du TEXT et réécrit la table de relocation.
 - `hatari/run.sh` (sans écran) et `hatari/runx.sh` (Xvfb + xdotool, avec joysticks, joypads STE et port parallèle, voir `joy4.cfg`). EmuTOS suffit : aucune ROM Atari n'est nécessaire.
 - `docs/fr/` : méthode, constats, carte du code.
