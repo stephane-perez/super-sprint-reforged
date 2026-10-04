@@ -96,6 +96,12 @@ def p4_patches(B):
         # palette de la course : bande de l'en-tête (rpal)
         (0x1B98, '42a7486ce842', '4eb9%08x' % E(26)),
         (0x2800, '42a7486ce842', '4eb9%08x' % E(26)),
+        # F_098BA : voiture traitée à cette image, modulo 8 si la verte est
+        # humaine (clignotement de son score quand elle est en tête)
+        (0x98BE, '302ce078c0bc0000ffff80fc00064840',
+            '4eb9%08x' % E(27) + '4e71' * 5),
+        # F_0EE60 (début de partie) : améliorations de la verte remises à 0
+        (0xEEAE, '4ebace4a', '4eba%04x' % ((E(28) - 0xEEB0) & 0xFFFF)),
         # F_0DD20 : « customized car includes » de la rouge sous sa voiture
         # déplacée à gauche (x 92 -> 12), et celui de la verte (cust4)
         (0xDD90, '3f3c005c', '3f3c000c'),
@@ -208,7 +214,7 @@ def p4_patches(B):
     for k, (disp, sites) in enumerate(TABLES):
         for at in sites:
             P.append((at, lea_a4(disp), lea_a4(P4B + 8 * k)))
-    return P, [0x6342, 0xE8A8, 0x97EE, 0xE34A, 0xD674, 0xFAB6, 0xDDBE, 0x994E, 0x1B9A, 0x2802] + list(VMAP)  # nouvelles relocations
+    return P, [0x6342, 0xE8A8, 0x97EE, 0xE34A, 0xD674, 0xFAB6, 0xDDBE, 0x994E, 0x1B9A, 0x2802, 0x98C0] + list(VMAP)  # nouvelles relocations
 
 def reframe(text, start, end, link, moves, count):
     """Agrandit le cadre de pile d'une fonction (link a6,#n) et déplace ses

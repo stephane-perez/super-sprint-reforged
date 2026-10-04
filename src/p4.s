@@ -124,6 +124,8 @@ GREEN2      equ     $041            ; couleurs 1 et 2, libres dans cette bande)
             bra.w   hlap            ; +96 : entrée $204 (F_0BB56, tour)
             bra.w   hblink          ; +100 : F_0994C (clignotement du premier)
             bra.w   rpal            ; +104 : palette de la course ($1B98, $2800)
+            bra.w   fmod            ; +108 : F_098BA, voiture de l'image
+            bra.w   upz             ; +112 : F_0EE60, début de partie
 
 ; ----------------------------------------------------------------------------
 ; init : remplace l'appel de F_0624A au démarrage (jsr $24(a5)).
@@ -989,6 +991,36 @@ hname       dc.w    0,0,22, 1,0,18, 2,7,33, 0,0,30
 hdrone      dc.w    3,6,29, 4,6,29, 5,22,29, 3,6,29
 ; « LAP » : image, x
 hlapw       dc.w    0,74, 1,74, 2,90, 0,74
+
+; fmod : remplace le calcul « image mod 6 » de F_098BA ($98BE, 16 octets) :
+; chaque voiture y est traitée 2 images de suite (score, tour, clignotement
+; du premier), voiture = reste / 2. Avec 6, la verte (3) n'était jamais
+; traitée : son score ne clignotait pas quand elle était en tête. Verte
+; humaine : modulo 8. Rend le reste dans le mot bas de d0.
+fmod        bsr     g4human
+            move.w  d0,d1
+            moveq   #0,d0
+            move.w  FRAMES(a4),d0
+            tst.w   d1
+            bne.s   .h
+            divu    #6,d0
+            swap    d0
+            rts
+.h          andi.w  #7,d0
+            rts
+
+; upz : remplace jsr F_0BCFA(i) dans la boucle de début de partie de F_0EE60
+; ($EEAE, i = 0..3). Cette boucle remet à zéro l'amélioration i des voitures
+; 0 à 2 (-$FEA + 8 x voiture + 2 x amélioration), jamais celles de la verte :
+; on efface aussi son amélioration i, puis on continue vers F_0BCFA(i).
+UPGR3       equ     -$fea+3*8       ; améliorations de la verte (4 mots)
+upz         move.w  4(a7),d0
+            add.w   d0,d0
+            lea     UPGR3(a4),a0
+            clr.w   (a0,d0.w)
+            move.l  a5,a0
+            adda.l  #$bcfa,a0
+            jmp     (a0)
 
 ; hlab : entrée $120, F_0A1C6(écran, voiture)
 hlab        bsr     g4human

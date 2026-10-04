@@ -55,7 +55,7 @@ make check                           # checks the result
 
 | Result | MD5 |
 |---|---|
-| `SSPRINT.PRG` (default) | `0ac5aef7d283a03b5114227efa3aba45` |
+| `SSPRINT.PRG` (default) | `4f3d1eab8225705843656bb97e756630` |
 | `SSPRINT.PRG` with `P4=0` (hard disk fix only) | `c98082d03fdc9f2ba12e6321a8e83188` |
 
 ## Study
