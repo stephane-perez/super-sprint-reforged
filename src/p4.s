@@ -1091,7 +1091,13 @@ hupd        movem.l d0-d7/a0-a3,-(a7)
             bne.s   .full
             lea     HDRSZ(a2),a2
             bra.s   .full
-.known      move.l  HWIT(a1),d0
+.known      ; en course, l'en-tête n'est repeint qu'au départ (hlab vide
+            ; alors le cache) ; le témoin, dans la colonne bleue, y change
+            ; quand elle clignote (voitures, fond et masque communs aux
+            ; deux écrans) : on ne le regarde pas
+            tst.b   HRACE(a4)
+            bne.s   .blink
+            move.l  HWIT(a1),d0
             cmp.l   4(a2),d0
             bne.s   .full
             move.l  HWIT+4(a1),d0
