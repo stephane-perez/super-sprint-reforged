@@ -6,7 +6,8 @@ Dreams Software, by State of the Art. This modified version is not
 affiliated with, or endorsed by, any rights holder.
 
 Project: https://github.com/stephane-perez/super-sprint-reforged
-Reverse engineering and code: Stephane Perez, with Claude (Anthropic AI).
+Reverse engineering and code: Claude AI (Anthropic).
+Game design, testing and graphics: Strider.
 
 
 STARTING THE GAME

@@ -6,7 +6,8 @@ Dreams Software, par State of the Art. Cette version modifiée n'est ni
 liée ni approuvée par un ayant droit.
 
 Projet : https://github.com/stephane-perez/super-sprint-reforged
-Rétro-ingénierie et code : Stéphane Perez, avec Claude (IA d'Anthropic).
+Rétro-ingénierie et code : Claude AI (Anthropic).
+Game design, essais et retouches graphiques : Strider.
 
 
 LANCER LE JEU
