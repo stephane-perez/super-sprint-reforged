@@ -15,7 +15,11 @@ STARTING THE GAME
 
 Copy the SSPRINT folder to a hard disk or a floppy and run SSPRINT.PRG.
 The AUTO\SUPER.PRG loader of the original disk is not needed.
-Colour display, 512 KB of memory or more.
+Colour display, 1 MB of memory or more (with 512 KB, the program would
+have to start from the AUTO folder: not tested).
+
+Tested on real machines: STF 1 MB, STE 4 MB, Mega STE 4 MB, Falcon030
+14 MB (RGB and VGA).
 
 
 DIFFERENCES FROM THE ORIGINAL GAME
@@ -87,6 +91,9 @@ KNOWN LIMITS
   started by another car.
 - Two cars cannot have the same control, "none" included (rule of the
   original game).
+- Falcon030 on a VGA monitor: the music plays too fast.
+- Falcon with a CT60 card: the game crashes after the intro screen;
+  switch the machine to 68030 mode.
 
 
 FILES

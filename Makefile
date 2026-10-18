@@ -57,11 +57,17 @@ game: $(P4DEP) tools/patch_ss.py tools/check_data.py
 	@echo
 	@echo "Copy build/SSPRINT to your Atari (hard disk or floppy) and run SSPRINT.PRG."
 
+# reference MD5 of SSPRINT.PRG: the default build depends on the version
+# shown on the title screen, so it is known for REF_VERSION only
+REF_VERSION := 1.0.0
 check:
 	@$(PY) -c "import hashlib,sys; \
-exp={'1':'787a0b6b95c7315a25903345b61f5738','0':'65e5b04c48c3b07f4154a15d7a9f0c51'}['$(P4)']; \
+p4='$(P4)'; v='$(VERSION)'; \
+exp={'1':'c9263001cba8427109130b767228dbb3','0':'65e5b04c48c3b07f4154a15d7a9f0c51'}[p4]; \
 h=hashlib.md5(open('$(B)/SSPRINT/SSPRINT.PRG','rb').read()).hexdigest(); \
-print('OK' if h==exp else 'MISMATCH: '+h); sys.exit(h!=exp)"
+skip=p4=='1' and v!='$(REF_VERSION)'; \
+print('version %s: reference MD5 known for $(REF_VERSION) only (make game VERSION=$(REF_VERSION))' % v if skip else ('OK' if h==exp else 'MISMATCH: '+h)); \
+sys.exit(0 if skip else h!=exp)"
 
 listing:
 	$(PY) tools/trace_ss.py $(GAME)/SUPER2.DAT

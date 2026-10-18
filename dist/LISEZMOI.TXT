@@ -15,7 +15,11 @@ LANCER LE JEU
 
 Copiez le dossier SSPRINT sur un disque dur ou une disquette, puis lancez
 SSPRINT.PRG. Le chargeur AUTO\SUPER.PRG de la disquette d'origine n'est
-plus nécessaire. Écran couleur, 512 Ko de mémoire ou plus.
+plus nécessaire. Écran couleur, 1 Mo de mémoire ou plus (avec 512 Ko, il
+faudrait lancer le programme depuis le dossier AUTO : non testé).
+
+Testé sur machines réelles : STF 1 Mo, STE 4 Mo, Mega STE 4 Mo, Falcon030
+14 Mo (RVB et VGA).
 
 
 DIFFÉRENCES AVEC LE JEU D'ORIGINE
@@ -92,6 +96,9 @@ LIMITES CONNUES
   rejoint une partie lancée par une autre voiture.
 - Deux voitures ne peuvent pas avoir le même contrôle, « none » compris
   (règle du jeu d'origine).
+- Falcon030 sur moniteur VGA : la musique est trop rapide.
+- Falcon avec carte CT60 : le jeu plante après l'écran d'intro ; passez
+  la machine en mode 68030.
 
 
 FICHIERS
