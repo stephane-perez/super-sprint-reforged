@@ -55,7 +55,9 @@ DIFFERENCES FROM THE ORIGINAL GAME
 
 4. Screens
 
-- Title screen: "AI WORK BY CLAUDE".
+- Title screen redrawn by Strider: "REFORGED" under "SUPER SPRINT",
+  retouched colours, and the credits "CODE BY CLAUDE AI", "DESIGN BY
+  STRIDER" and the version number.
 - Options screen: four cars (the green one included), car names and
   controls in four columns, help text on two lines.
 - Track selection, "prepare to race", initials: four columns.

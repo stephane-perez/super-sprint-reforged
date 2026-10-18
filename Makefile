@@ -16,13 +16,18 @@
 PY    ?= python3
 GAME  ?= SSPRINT
 P4    ?= 1
+# version shown on the title screen: the latest Git tag (v1.2.3 -> 1.2.3)
+VERSION ?= $(shell git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//')
+ifeq ($(VERSION),)
+VERSION := 0.0.0
+endif
 VASM  ?= $(shell command -v vasmm68k_mot 2>/dev/null || echo .tools/vasm/vasmm68k_mot)
 B     := build
-VFLAGS := -quiet -m68000
+VFLAGS := -quiet -m68000 -Isrc
 DATA  := SUPER.DAT SUPER1.DAT INIT.DAT SSPRINT.HSC SSPRINT.SEQ
 
 ifeq ($(P4),1)
-P4OPT := --p4 $(B)/p4.bin
+P4OPT := --p4 $(B)/p4.bin --version $(VERSION)
 P4DEP := $(B)/p4.bin
 TEXTS := README.TXT LISEZMOI.TXT
 endif
@@ -39,7 +44,7 @@ $(B):
 	mkdir -p $(B)
 
 # --- our own code (no game data involved) ----------------------------------
-$(B)/p4.bin: src/p4.s | $(B) $(VASM)
+$(B)/p4.bin: src/p4.s src/title.inc | $(B) $(VASM)
 	$(VASM) $(VFLAGS) -Fbin -o $@ $<
 
 # --- the game: patched from the user's own SUPER2.DAT ----------------------
@@ -54,7 +59,7 @@ game: $(P4DEP) tools/patch_ss.py tools/check_data.py
 
 check:
 	@$(PY) -c "import hashlib,sys; \
-exp={'1':'4f3d1eab8225705843656bb97e756630','0':'65e5b04c48c3b07f4154a15d7a9f0c51'}['$(P4)']; \
+exp={'1':'787a0b6b95c7315a25903345b61f5738','0':'65e5b04c48c3b07f4154a15d7a9f0c51'}['$(P4)']; \
 h=hashlib.md5(open('$(B)/SSPRINT/SSPRINT.PRG','rb').read()).hexdigest(); \
 print('OK' if h==exp else 'MISMATCH: '+h); sys.exit(h!=exp)"
 

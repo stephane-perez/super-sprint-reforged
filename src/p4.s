@@ -133,6 +133,11 @@ GREEN2      equ     $041            ; couleurs 1 et 2, libres dans cette bande)
 ; ports joypad (cookie _MCH = STE ou Falcon), puis continue vers F_0624A.
 ; ----------------------------------------------------------------------------
 init        move.w  #CTL3_DEF,CTL+6(a4)
+            lea     titlepal(pc),a0 ; écran titre : palette retouchée
+            lea     TITLEPAL(a4),a1
+            moveq   #7,d0
+.tp         move.l  (a0)+,(a1)+
+            dbra    d0,.tp
             move.w  #HGREEN,PODPAL+2*5(a4)  ; podium : en-tête (bande 0)
             move.w  #HGREEN,CUSTPAL+2*5(a4) ; « customize car » : en-tête,
                                     ; colonne verte en vert vif (couleur 5,
@@ -384,7 +389,7 @@ dec4        move.l  4(a7),d0
             addq.l  #8,a7
             movea.l 8(a7),a0
             movem.l d2-d7/a2-a3,-(a7)
-            bsr.s   pic4
+            bsr     pic4
             movem.l (a7)+,d2-d7/a2-a3
             move.w  #GREEN1,PALS+8(a4)      ; P0[4] : textes de la 4e colonne
             move.w  #GREEN1,PALS+$40+2(a4)
@@ -392,13 +397,18 @@ dec4        move.l  4(a7),d0
             rts
 
 ; ----------------------------------------------------------------------------
-; Écran titre : « AI WORK BY CLAUDE » au-dessus de « (c) 1986 ATARI GAMES »
-; (lignes 193-197, couleur 5, fin en x = 300), dans la même petite police.
-; L'image du titre est l'image n° 8 de F_0AFCE(n, tampon) (entrée $24C), qui
-; la reconstitue par blocs de 8x8 dans le tampon avant chaque affichage.
+; Écran titre. L'image du titre est l'image n° 8 de F_0AFCE(n, tampon)
+; (entrée $24C), qui la reconstitue par blocs de 8x8 dans le tampon avant
+; chaque affichage. On y applique les retouches de Strider (« REFORGED »,
+; src/title.inc : seuls les pixels redessinés), puis les crédits au-dessus de
+; « (c) 1986 ATARI GAMES » (lignes 193-197, x = 196, couleur 5), dans la même
+; petite police : lignes 169, 177, 185. La palette retouchée est posée par
+; init (titlepal -> TITLEPAL).
 ; ----------------------------------------------------------------------------
-AIX         equ     199
-AIY         equ     185
+CRX         equ     196
+CRY         equ     169
+TITLEPAL    equ     -$1534          ; palette du titre (INIT.DAT), utilisée
+                                    ; par F_0A3DE après F_0AFCE(8)
 title5      move.l  6(a7),-(a7)     ; F_0AFCE(n, tampon)
             move.w  8(a7),-(a7)
             move.l  a5,a0
@@ -409,16 +419,42 @@ title5      move.l  6(a7),-(a7)     ; F_0AFCE(n, tampon)
             bne.s   .no
             movem.l d0-d7/a0-a3,-(a7)
             movea.l 6+48(a7),a1
-            bsr.s   aitext
+            bsr.s   tpatch
+            bsr.s   credits
             movem.l (a7)+,d0-d7/a0-a3
 .no         rts
 
-aitext      lea     AIY*160(a1),a1
-            lea     FONT(a4),a3
-            move.w  #AIX,d2
+; tpatch : retouches de l'image du titre (tampon a1)
+tpatch      lea     titlepix(pc),a0
+.blk        move.w  (a0)+,d0        ; décalage du bloc, -1 = fin
+            bmi.s   .end
+            lea     (a1,d0.w),a2
+            move.w  (a0)+,d1        ; masque des pixels changés
+            move.w  d1,d2
+            not.w   d2
+            moveq   #3,d3
+.pl         move.w  (a2),d0
+            and.w   d2,d0
+            or.w    (a0)+,d0
+            move.w  d0,(a2)+
+            dbra    d3,.pl
+            bra.s   .blk
+.end        rts
+
+; credits : 3 lignes de texte (tampon a1)
+credits     lea     FONT(a4),a3
             moveq   #5,d7
-            lea     txtai(pc),a2
-            bra     puts
+            lea     txcred(pc),a2
+            movea.l a1,a0
+            lea     CRY*160(a1),a1
+            moveq   #2,d6
+.line       move.w  #CRX,d2
+            movem.l d6/a0-a1,-(a7)
+            bsr     puts
+            movem.l (a7)+,d6/a0-a1
+            lea     8*160(a1),a1
+            dbra    d6,.line
+            rts
 
 ; pic4 : image « 3 voitures » en a0 (320x200, 4 plans). La rouge (lignes
 ; 126-167, blocs de 16 pixels 5 à 14) est déplacée de 5 blocs à gauche (sous
@@ -2150,7 +2186,16 @@ n7          dc.b    ' joypad b ',0
 txtgreen    dc.b    18,29,16,16,25,38,14,12,29,-1   ; GREEN CAR
 txtlap      dc.b    23,12,27,38,-1                  ; LAP
 txtgcar     dc.b    'green car',0
-txtai       dc.b    12,20,38,34,26,29,22,38,13,36,38,14,23,12,32,15,16,-1
+; crédits de l'écran titre (police du jeu : 0-9, 10 = « . », 12-37 = A-Z,
+; 38 = espace). Les 8 octets $FE de la 3e ligne reçoivent le numéro de
+; version (tag Git) à la construction (patch_ss.py --version).
+txcred      dc.b    14,26,15,16,38,13,36,38,14,23,12,32,15,16,38,12,20,-1  ; CODE BY CLAUDE AI
+            dc.b    15,16,30,20,18,25,38,13,36,38,30,31,29,20,15,16,29,-1  ; DESIGN BY STRIDER
+            dc.b    2,0,2,6,38,33                                       ; 2026 V
+            dc.b    $fe,$fe,$fe,$fe,$fe,$fe,$fe,$fe,-1                  ; 1.0.0
+            even
+
+            include "title.inc"
                                                 ; AI WORK BY CLAUDE
 gwrench     dc.b    %10100000                       ; clé à molette
             dc.b    %11100000                       ; (8 pixels de large)

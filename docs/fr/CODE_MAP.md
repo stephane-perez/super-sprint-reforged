@@ -159,5 +159,5 @@ Environ 45 boucles sont bornées à 3 (joueurs humains) dans une vingtaine de fo
 | `$FAB4` → `upin` | lecture du contrôle dans « customize car » | pour la verte, le tir ne compte qu'après avoir été relâché |
 | `$DDBC` → `cust4`, `$DD90` | « customized car includes » de 3 voitures | rouge sous sa voiture déplacée (x 12), verte en (172, 173) |
 | `$F922`, `$F93C`, `$FA74`, `$FB1E`, `$FC22` | tables à 3 entrées de « customize car » (nom, largeur, couleur) | tables à 4 entrées dans le BSS ajouté |
-| `$24C` → `title5` | `F_0AFCE` (image n° 8 = titre) | « AI WORK BY CLAUDE » au-dessus du copyright |
+| `$24C` → `title5` | `F_0AFCE` (image n° 8 = titre) | retouches de Strider (`src/title.inc`, produit par `tools/title_patch.py` : seuls les pixels redessinés, par blocs de 16 avec masque), puis 3 lignes de crédits au-dessus du copyright (police du jeu, couleur 5, x = 196, lignes 169/177/185) ; la version (tag Git) est écrite par `patch_ss.py --version`. La palette retouchée est copiée par `init` en `-$1534(a4)` (palette du titre, lue dans INIT.DAT) |
 | `hud4` | | touche `*` du pavé numérique : 5 clés pour chaque voiture (pour les essais) |

@@ -6,6 +6,7 @@ Reverse engineering, patches and tools for **Super Sprint** (Electric Dreams, 19
 
 - **hard disk install**: the remaining protection (a read of the floppy's boot sector) is removed; the game runs from a hard disk (tested under EmuTOS, on ST and STE);
 - **RESET button**: the game's reset routine (a picture, then back to TOS, which locked up the machine) is no longer installed; RESET restarts TOS normally;
+- **title screen** redrawn by Strider ("REFORGED"), with the credits and the version number (the latest Git tag);
 - **4th player**: the green car, which was always driven by the computer (the "drone"), can be driven by a human;
 - **new controls** for every car: a joystick on a **parallel-port adapter** (two sockets) and the **STE joypads** A and B.
 
@@ -61,13 +62,14 @@ The files must be these ones, **not packed** (some cracked versions pack them: t
 
 | Result | MD5 |
 |---|---|
-| `SSPRINT.PRG` (default) | `4f3d1eab8225705843656bb97e756630` |
+| `SSPRINT.PRG` (default, version 0.0.0: no tag yet) | `787a0b6b95c7315a25903345b61f5738` |
 | `SSPRINT.PRG` with `P4=0` (hard disk fix only) | `65e5b04c48c3b07f4154a15d7a9f0c51` |
 
 ## Study
 
 - `tools/trace_ss.py`: a recursive disassembler for this PRG (relocations, jump table, a4 variables). `make listing GAME=…` → `work/ss.lst`; `tools/show.py <start> <end>` prints an extract. Needs `pip install capstone`.
 - `tools/check_data.py`: checks the size and MD5 of the data files (and tells a packed file apart). `tools/txt2st.py`: converts `dist/*.TXT` to the Atari ST character set (CR LF line ends).
+- `tools/title_patch.py`: turns the retouched title screen (Degas PI1) into `src/title.inc`, which holds only the redrawn pixels and the new palette, nothing of the game's picture.
 - `tools/patch_ss.py`: applies the patches (checks the MD5 and every original byte), appends the code of `src/p4.s` to the TEXT segment and rewrites the relocation table.
 - `hatari/run.sh` (headless) and `hatari/runx.sh` (Xvfb + xdotool, with joysticks, STE joypads and the parallel port, see `joy4.cfg`). EmuTOS is enough: no Atari ROM is needed.
 - `docs/fr/`: methodology, findings, code map (in French).
@@ -75,6 +77,7 @@ The files must be these ones, **not packed** (some cracked versions pack them: t
 ## Credits
 
 - *Super Sprint*: Atari Games (arcade, 1986); Atari ST version by State of the Art for Electric Dreams (programming: Nalin Sharma, Martin Green, Jon Steele; graphics: Chris Gibbs; sound: Mark Tisdale).
+- Title screen design: Strider.
 - [vasm](http://sun.hasenbraten.de/vasm/): Volker Barthelmann and Frank Wille.
 - [Hatari](https://hatari.tuxfamily.org/) and [EmuTOS](https://emutos.sourceforge.io/): the emulator and the free TOS used for testing.
 - [Capstone](https://www.capstone-engine.org/): the disassembly engine.

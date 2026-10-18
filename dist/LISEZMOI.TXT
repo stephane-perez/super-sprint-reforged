@@ -59,7 +59,9 @@ DIFFÉRENCES AVEC LE JEU D'ORIGINE
 
 4. Écrans
 
-- Écran titre : « AI WORK BY CLAUDE ».
+- Écran titre redessiné par Strider : « REFORGED » sous « SUPER SPRINT »,
+  couleurs retouchées, et les crédits « CODE BY CLAUDE AI », « DESIGN BY
+  STRIDER » et le numéro de version.
 - Écran des options : quatre voitures (la verte comprise), noms et
   contrôles sur quatre colonnes, aide sur deux lignes.
 - Choix du circuit, « prepare to race », initiales : quatre colonnes.

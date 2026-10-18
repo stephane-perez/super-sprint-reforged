@@ -3,6 +3,7 @@
     python3 tools/patch_ss.py SUPER2.DAT SSPRINT.PRG               # disque dur
     python3 tools/patch_ss.py SUPER2.DAT SSPRINT.PRG --p4 p4.bin   # + 4e voiture
     ... --autopilot : pour les tests, voitures humaines conduites par l'IA
+    ... --version 1.0.0 : numéro affiché sur l'écran titre (défaut 0.0.0)
 
 SUPER2.DAT est le programme du jeu (PRG GEMDOS). Le fichier fourni doit être
 exactement celui de la version étudiée (MD5 ci-dessous). Chaque correctif
@@ -256,14 +257,36 @@ P4_DATA = [
             txt('%-46s' % (' ' * 5 + 'f2 blue  f3 red  f4 yellow  f5 green'), 46)),
 ]
 
+def set_version(p4, version):
+    """Numéro de version (tag Git, « v1.2.3 » ou « 1.2.3 ») dans les crédits
+    de l'écran titre : 8 octets $FE réservés dans src/p4.s (txcred), police
+    du jeu (0-9, « . » = 10, A-Z = 12-37)."""
+    v = version.lstrip('vV').upper()
+    code = []
+    for c in v:
+        if c.isdigit(): code.append(int(c))
+        elif c == '.': code.append(10)
+        elif 'A' <= c <= 'Z': code.append(12 + ord(c) - ord('A'))
+        else: sys.exit('version %r : caractère %r impossible' % (version, c))
+    if len(code) > 8:
+        sys.exit('version %r : 8 caractères au plus' % version)
+    i = p4.find(b'\xfe' * 8)
+    if i < 0 or p4.find(b'\xfe' * 8, i + 1) >= 0:
+        sys.exit('p4.bin : emplacement de la version introuvable')
+    return p4[:i] + bytes(code + [0xFF] * (8 - len(code))) + p4[i + 8:]
+
 def main():
     a = sys.argv[1:]
     p4 = None
     auto = '--autopilot' in a
     if auto:
         a.remove('--autopilot')
+    version = '0.0.0'
+    if '--version' in a:
+        i = a.index('--version'); version = a[i + 1]; del a[i:i + 2]
     if '--p4' in a:
         i = a.index('--p4'); p4 = open(a[i + 1], 'rb').read(); del a[i:i + 2]
+        p4 = set_version(p4, version)
     if len(a) != 2:
         sys.exit(__doc__)
     raw = open(a[0], 'rb').read()
