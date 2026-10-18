@@ -19,7 +19,7 @@ plus nécessaire. Écran couleur, 1 Mo de mémoire ou plus (avec 512 Ko, il
 faudrait lancer le programme depuis le dossier AUTO : non testé).
 
 Testé sur machines réelles : STF 1 Mo, STE 4 Mo, Mega STE 4 Mo, Falcon030
-14 Mo (RVB et VGA).
+14 Mo (RVB et VGA), Falcon avec carte CT60 (VGA compris).
 
 
 DIFFÉRENCES AVEC LE JEU D'ORIGINE
@@ -96,9 +96,6 @@ LIMITES CONNUES
   rejoint une partie lancée par une autre voiture.
 - Deux voitures ne peuvent pas avoir le même contrôle, « none » compris
   (règle du jeu d'origine).
-- Falcon030 sur moniteur VGA : la musique est trop rapide.
-- Falcon avec carte CT60 : le jeu plante après l'écran d'intro ; passez
-  la machine en mode 68030.
 
 
 FICHIERS

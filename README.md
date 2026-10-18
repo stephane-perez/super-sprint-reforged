@@ -4,7 +4,7 @@
 
 Reverse engineering, patches and tools for **Super Sprint** (Electric Dreams, 1986) on the Atari ST, using the methods and tools of [IK+ Reforged](https://github.com/stephane-perez/ik-plus-reforged):
 
-- **hard disk install**: the remaining protection (a read of the floppy's boot sector) is removed; the game runs from a hard disk (tested on STF 1 MB, STE, Mega STE and Falcon030; with 512 KB it would have to start from the AUTO folder, not tested; a Falcon with a CT60 must run in 68030 mode, and on a VGA monitor the music plays too fast);
+- **hard disk install**: the remaining protection (a read of the floppy's boot sector) is removed; the game runs from a hard disk (tested on STF 1 MB, STE, Mega STE, Falcon030 in RGB and VGA, and Falcon with a CT60; with 512 KB it would have to start from the AUTO folder, not tested);
 - **RESET button**: the game's reset routine (a picture, then back to TOS, which locked up the machine) is no longer installed; RESET restarts TOS normally;
 - **title screen** redrawn by Strider ("REFORGED"), with the credits and the version number (the latest Git tag);
 - **4th player**: the green car, which was always driven by the computer (the "drone"), can be driven by a human;
