@@ -7,7 +7,7 @@ affiliated with, or endorsed by, any rights holder.
 
 Project: https://github.com/stephane-perez/super-sprint-reforged
 Reverse engineering and code: Claude AI (Anthropic).
-Game design, testing and graphics: Strider.
+Game design, testing and additional graphics: Strider.
 
 
 STARTING THE GAME
